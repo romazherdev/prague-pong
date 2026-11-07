@@ -1,4 +1,5 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import { defaultLocale, isLocale } from '#lib/i18n/locales.js';
 import { publicOrigin } from '#lib/server/app.js';
 import { clubRequest, guarded, guardedForm } from '#lib/server/request.js';
 import type { Actions, PageServerLoad } from './$types';
@@ -6,13 +7,9 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = (event) => {
 	const req = clubRequest(event);
 	return guarded(req, () => {
-		const all = [
-			...req.core.listMembers(req.actor, req.club.id).map((m) => ({ ...m, active: true })),
-			...req.core.listInactiveMembers(req.actor, req.club.id).map((m) => ({ ...m, active: false }))
-		];
-		const member = all.find((m) => m.id === event.params.member);
-		if (!member) error(404);
-		const lang = event.url.searchParams.get('lang') === 'en' ? 'en' : 'cs';
+		const member = req.core.getMember(req.actor, req.club.id, event.params.member);
+		const asked = event.url.searchParams.get('lang');
+		const lang = isLocale(asked) ? asked : defaultLocale;
 		return {
 			member,
 			messageLang: lang,

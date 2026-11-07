@@ -7,12 +7,12 @@ A club organiser for table tennis clubs, starting with Mladí Veteráni (Prague)
 - **Club** — an organisation with members and league teams (e.g. Mladí Veteráni). Club-owned records carry a `clubId`, so more clubs can be added without a migration. There is no club sign-up flow.
 - **Venue** — a physical place with tables (e.g. Pod Juliskou). Shared: several clubs can play at one venue. In the UI it's called a hall / *herna*. Not club-scoped (ADR 0001).
 - **Team** — one of a club's league teams (A–D), with a roster of members. Czech: *družstvo*.
-- **Member** — a person in the club: role (member, captain of a team, admin), language preference, optional link to a STIS player, active/inactive.
+- **Member** — a person in the club: role (member, captain of a team, admin), language preference, optional email (only captains and admins need one), optional link to a STIS player, active/inactive. A **deactivated** member (left the club) is hidden from lists and line-ups, but their history stays.
 - **Captain** — a member who builds their team's line-ups. **Admin** — manages members, teams, schedule and settings, and can act as captain for any team.
 - **Sign-in link** — a single-use emailed link (magic link) that starts a **session** for an admin or captain. Captains and admins need an email on their member record for it.
 - **Session** — a signed-in admin or captain on one device (cookie). Admin and captain powers need a session; a personal link never gives them.
 - **Actor** — who is asking the club core to do something: a session or a personal link, plus the member. The core checks permissions from it (ADR 0003).
-- **Personal link** — a member's private URL carrying a secret token; identifies them without a login and only ever allows member actions. Regenerating it invalidates the old one. Never posted in group chats.
+- **Personal link** — a member's private URL carrying a secret token; identifies them without a login and only ever allows member actions. Regenerating it invalidates the old one. Never posted in group chats. Opening it remembers the member on that device (cookie) and shows **my events** (ADR 0004).
 - **Event** — anything members answer for. Two kinds:
   - **Match** — a league fixture (Czech: *utkání*): team, opponent, home or away, venue, start and end time, fixture key.
   - **Training session** — generated from a **training rule** (weekdays + times); can be cancelled.

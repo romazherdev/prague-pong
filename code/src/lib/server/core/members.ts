@@ -1,14 +1,18 @@
 import type Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
-import { translator } from '#lib/i18n/messages.js';
+import { firstName, translator } from '#lib/i18n/messages.js';
 import { isLocale, type Locale } from '#lib/i18n/locales.js';
 import { accessRules, InvalidInputError, normaliseEmail, NotFoundError, type Actor } from './access';
 import type { CalendarMatch, calendarModule } from './calendar';
-import { hashSecret, newSecret } from './secrets';
+import type { Clock } from './ports';
+import { newSecret } from './secrets';
 
 export type MemberSummary = { id: string; name: string; email: string | null; isAdmin: boolean };
 
 export type PersonalLinkMember = { actor: Actor; name: string; language: Locale | null };
+
+/** The cookies that can tell who uses a device. */
+export type DeviceIdentity = { linkToken?: string; sessionToken?: string };
 
 export type MyEvents = { name: string; matches: CalendarMatch[] };
 
@@ -17,8 +21,8 @@ type MemberRow = { id: string; name: string; email: string | null; is_admin: num
 const toSummary = (r: MemberRow): MemberSummary => ({ id: r.id, name: r.name, email: r.email, isAdmin: r.is_admin === 1 });
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'cs');
 
-export function membersModule(deps: { db: Database.Database; calendar: ReturnType<typeof calendarModule> }) {
-	const { db, calendar } = deps;
+export function membersModule(deps: { db: Database.Database; clock: Clock; calendar: ReturnType<typeof calendarModule> }) {
+	const { db, clock, calendar } = deps;
 	const rules = accessRules(db);
 
 	const listByActive = (clubId: string, active: boolean) =>
@@ -49,6 +53,13 @@ export function membersModule(deps: { db: Database.Database; calendar: ReturnTyp
 		}
 		return { name, email };
 	}
+
+	/** The member behind a device's personal-link cookie or, failing that, its session. */
+	const deviceMemberId = (device: DeviceIdentity): string | undefined =>
+		(device.linkToken &&
+			(db.prepare('SELECT id FROM members WHERE link_token = ? AND active = 1').get(device.linkToken) as { id: string } | undefined)
+				?.id) ||
+		(device.sessionToken ? rules.memberIdBySession(device.sessionToken, clock.now()) : undefined);
 
 	const linkToken = (memberId: string) =>
 		(db.prepare('SELECT link_token FROM members WHERE id = ?').get(memberId) as { link_token: string }).link_token;
@@ -131,7 +142,7 @@ export function membersModule(deps: { db: Database.Database; calendar: ReturnTyp
 			const m = memberOfClub(clubId, memberId);
 			const club = db.prepare('SELECT name, slug FROM clubs WHERE id = ?').get(clubId) as { name: string; slug: string };
 			const url = `${opts.origin}/${club.slug}/m/${linkToken(memberId)}`;
-			const text = translator(opts.locale)('personalLink.message', { name: m.name.split(' ')[0], club: club.name, link: url });
+			const text = translator(opts.locale)('personalLink.message', { name: firstName(m.name), club: club.name, link: url });
 			return { url, text };
 		},
 
@@ -166,25 +177,24 @@ export function membersModule(deps: { db: Database.Database; calendar: ReturnTyp
 		 * The saved language of whoever uses this device: the member behind the personal-link cookie, else the
 		 * signed-in member. Not club-scoped: it only picks a language.
 		 */
-		savedLanguage(device: { linkToken?: string; sessionToken?: string }): Locale | null {
-			const fromLink =
-				device.linkToken &&
-				(db.prepare('SELECT language FROM members WHERE link_token = ? AND active = 1').get(device.linkToken) as
-					| { language: string | null }
-					| undefined);
-			if (fromLink && isLocale(fromLink.language)) return fromLink.language;
-			const fromSession =
-				device.sessionToken &&
-				(db
-					.prepare('SELECT m.language FROM sessions s JOIN members m ON m.id = s.member_id WHERE s.token_hash = ? AND m.active = 1')
-					.get(hashSecret(device.sessionToken)) as { language: string | null } | undefined);
-			return fromSession && isLocale(fromSession.language) ? fromSession.language : null;
+		savedLanguage(device: DeviceIdentity): Locale | null {
+			const id = deviceMemberId(device);
+			const row = id && (db.prepare('SELECT language FROM members WHERE id = ?').get(id) as { language: string | null });
+			return row && isLocale(row.language) ? row.language : null;
 		},
 
-		/** The member's saved language, if any. */
-		memberLanguage(memberId: string): Locale | null {
-			const row = db.prepare('SELECT language FROM members WHERE id = ?').get(memberId) as { language: string | null } | undefined;
-			return isLocale(row?.language) ? row.language : null;
+		/** Saves a language switch with the device's member (see `savedLanguage`), so it follows them to other devices. */
+		saveLanguageForDevice(device: DeviceIdentity, locale: Locale): void {
+			const id = deviceMemberId(device);
+			if (id) db.prepare('UPDATE members SET language = ? WHERE id = ?').run(locale, id);
+		},
+
+		/** One member of the club, active or not, for the admin's member page. Admins only. */
+		getMember(actor: Actor | undefined, clubId: string, memberId: string): MemberSummary & { active: boolean } {
+			rules.requireAdmin(actor, clubId);
+			const m = memberOfClub(clubId, memberId);
+			const row = db.prepare('SELECT id, name, email, is_admin FROM members WHERE id = ?').get(m.id) as MemberRow;
+			return { ...toSummary(row), active: m.active === 1 };
 		}
 	};
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
-	import { formatMatchTime, translator } from '#lib/i18n/messages.js';
+	import { firstName, formatMatchTime, translator } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -11,7 +11,7 @@
 	<h1>{t('me.title')}</h1>
 	<p>{t('me.noLink')}</p>
 {:else}
-	<h1>{t('me.hello', { name: data.events.name.split(' ')[0] })}</h1>
+	<h1>{t('me.hello', { name: firstName(data.events.name) })}</h1>
 	<h2>{t('me.upcoming')}</h2>
 	{#if data.events.matches.length === 0}
 		<p>{t('calendar.empty')}</p>

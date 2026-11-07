@@ -16,10 +16,12 @@ export class ForbiddenError extends Error {
 	override name = 'ForbiddenError';
 }
 
+export type InvalidInputCode = 'nameRequired' | 'emailTaken' | 'emailInvalid' | 'cannotDeactivateSelf';
+
 /** The input breaks a rule; `code` says which, so routes can show a translated message. */
 export class InvalidInputError extends Error {
 	override name = 'InvalidInputError';
-	constructor(readonly code: 'nameRequired' | 'emailTaken' | 'emailInvalid' | 'cannotDeactivateSelf' | (string & {})) {
+	constructor(readonly code: InvalidInputCode) {
 		super(code);
 	}
 }
@@ -86,7 +88,18 @@ export function accessRules(db: Database.Database) {
 		return m;
 	}
 
-	return { member, isActiveMemberOf, requireMember, isAdmin, requireAdmin, requireCaptainOf };
+	/** The active member a live session belongs to (any club), for things that don't need a club, like language. */
+	const memberIdBySession = (sessionToken: string, now: Date) =>
+		(
+			db
+				.prepare(
+					`SELECT m.id FROM sessions s JOIN members m ON m.id = s.member_id
+					 WHERE s.token_hash = ? AND s.expires_at > ? AND m.active = 1`
+				)
+				.get(hashSecret(sessionToken), now.toISOString()) as { id: string } | undefined
+		)?.id;
+
+	return { member, isActiveMemberOf, requireMember, isAdmin, requireAdmin, requireCaptainOf, memberIdBySession };
 }
 
 export function accessModule(deps: { db: Database.Database; clock: Clock; mailer: Mailer }) {

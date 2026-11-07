@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { translator, type MessageKey } from '#lib/i18n/messages.js';
+	import { locales } from '#lib/i18n/locales.js';
+	import { languageNames, translator, type MessageKey } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -24,8 +25,9 @@
 		<p class="hint">{t('members.personalLinkHint')}</p>
 		<p class="lang">
 			{t('members.messageLanguage')}:
-			<a href="?lang=cs" aria-current={data.messageLang === 'cs' ? 'true' : undefined}>Čeština</a>
-			<a href="?lang=en" aria-current={data.messageLang === 'en' ? 'true' : undefined}>English</a>
+			{#each locales as l (l)}
+				<a href="?lang={l}" aria-current={data.messageLang === l ? 'true' : undefined}>{languageNames[l]}</a>
+			{/each}
 		</p>
 		<pre class="message">{data.link.text}</pre>
 		<div class="actions">

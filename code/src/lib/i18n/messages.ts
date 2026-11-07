@@ -30,6 +30,10 @@ const cs = {
 	'me.hello': 'Ahoj {name}',
 	'me.upcoming': 'Nadcházející zápasy',
 	'me.noLink': 'Otevřete svůj osobní odkaz, který vám poslal správce klubu (např. přes WhatsApp).',
+	'me.switchTitle': 'Jiný člen?',
+	'me.switchQuestion': 'Toto zařízení zatím patří členovi {from}. Odkaz, který jste otevřeli, patří členovi {to}.',
+	'me.switchConfirm': 'Přepnout na {to}',
+	'me.switchCancel': 'Zůstat jako {from}',
 	'me.linkInvalidTitle': 'Odkaz neplatí',
 	'me.linkInvalid': 'Tento osobní odkaz už neplatí. Požádejte správce klubu o nový.',
 	'members.title': 'Členové klubu',
@@ -62,7 +66,7 @@ const cs = {
 	'error.emailInvalid': 'Neplatný e-mail.',
 	'error.cannotDeactivateSelf': 'Sami sebe deaktivovat nemůžete.',
 	'personalLink.message':
-		'Ahoj {name}, tady je tvůj osobní odkaz do Prague Pong ({club}). Uvidíš v něm zápasy a tréninky a jedním klepnutím odpovíš, jestli můžeš:\n{link}\n\nOdkaz je jen pro tebe, prosím neposílej ho dál ani do skupiny.',
+		'Ahoj {name}, tady je tvůj osobní odkaz do Prague Pong ({club}). Uvidíš v něm nadcházející zápasy klubu:\n{link}\n\nOdkaz je jen pro tebe, prosím neposílej ho dál ani do skupiny.',
 	'error.forbidden': 'Na tohle nemáte oprávnění.',
 	'error.notFound': 'Nenalezeno.',
 	'nav.calendar': 'Kalendář',
@@ -120,6 +124,10 @@ const en: Record<MessageKey, string> = {
 	'me.hello': 'Hi {name}',
 	'me.upcoming': 'Upcoming matches',
 	'me.noLink': 'Open the personal link the club admin sent you (e.g. on WhatsApp).',
+	'me.switchTitle': 'A different member?',
+	'me.switchQuestion': 'This device belongs to {from} so far. The link you opened belongs to {to}.',
+	'me.switchConfirm': 'Switch to {to}',
+	'me.switchCancel': 'Stay as {from}',
 	'me.linkInvalidTitle': 'Link not valid',
 	'me.linkInvalid': 'This personal link no longer works. Ask the club admin for a new one.',
 	'members.title': 'Club members',
@@ -152,7 +160,7 @@ const en: Record<MessageKey, string> = {
 	'error.emailInvalid': 'Not a valid email address.',
 	'error.cannotDeactivateSelf': "You can't deactivate yourself.",
 	'personalLink.message':
-		"Hi {name}, here is your personal link to Prague Pong ({club}). It shows matches and training sessions, and you answer whether you can come with one tap:\n{link}\n\nThe link is just for you, please don't forward it or post it in the group.",
+		"Hi {name}, here is your personal link to Prague Pong ({club}). It shows the club's upcoming matches:\n{link}\n\nThe link is just for you, please don't forward it or post it in the group.",
 	'error.forbidden': "You're not allowed to do this.",
 	'error.notFound': 'Not found.',
 	'nav.calendar': 'Calendar',
@@ -220,3 +228,6 @@ export function formatClockTime(iso: string, locale: Locale, timeZone: string): 
 		new Date(iso)
 	);
 }
+
+/** How to greet someone: the first word of their name ("Petr Novák" → "Petr"). */
+export const firstName = (name: string) => name.trim().split(/\s+/)[0];

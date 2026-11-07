@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ForbiddenError, InvalidInputError, type Actor } from './access';
+import { ForbiddenError, InvalidInputError, NotFoundError, type Actor } from './access';
 import { createTestCore } from './testing';
 
 const ORIGIN = 'https://pong.example';
@@ -175,15 +175,58 @@ describe('myUpcomingEvents', () => {
 	});
 });
 
+describe('getMember', () => {
+	it('shows an admin one member, active or not, from their own club only', () => {
+		const { core, club, seed, asAdmin } = setup();
+		const other = seed.club({ name: 'Other' });
+		const outsider = seed.member({ clubId: other.id, name: 'Outsider' });
+		const petr = core.addMember(asAdmin, club.id, { name: 'Petr' });
+		core.deactivateMember(asAdmin, club.id, petr.id);
+
+		expect(core.getMember(asAdmin, club.id, petr.id)).toEqual({ id: petr.id, name: 'Petr', email: null, isAdmin: false, active: false });
+		expect(() => core.getMember(asAdmin, club.id, outsider.id)).toThrow(NotFoundError);
+		expect(() => core.getMember({ via: 'personal-link', memberId: petr.id }, club.id, petr.id)).toThrow(ForbiddenError);
+	});
+});
+
 describe('member language', () => {
 	it("a member's saved language beats the device preference and the browser's language", () => {
 		const { core, club, asAdmin } = setup();
 		const petr = core.addMember(asAdmin, club.id, { name: 'Petr' });
-		const viaLink: Actor = { via: 'personal-link', memberId: petr.id };
+		const linkToken = tokenOf(core.personalLinkMessage(asAdmin, club.id, petr.id, { origin: ORIGIN, locale: 'cs' }).url);
 
-		core.setMyLanguage(viaLink, club.id, 'en');
+		core.setMyLanguage({ via: 'personal-link', memberId: petr.id }, club.id, 'en');
 
-		expect(core.resolveLocale({ memberPreference: core.memberLanguage(petr.id), devicePreference: 'cs', acceptLanguage: 'cs' })).toBe('en');
+		expect(core.resolveLocale({ memberPreference: core.savedLanguage({ linkToken }), devicePreference: 'cs', acceptLanguage: 'cs' })).toBe('en');
 		expect(core.resolveLocale({ memberPreference: null, devicePreference: 'cs', acceptLanguage: 'en' })).toBe('cs');
 	});
+
+	it("finds the device's member from the personal-link cookie or the session, and switching language saves to them", async () => {
+		const { core, club, seed, asAdmin, mailer } = setup();
+		const team = seed.team({ clubId: club.id, name: 'A' });
+		const petr = core.addMember(asAdmin, club.id, { name: 'Petr', email: 'petr@example.cz' });
+		core.setCaptain(asAdmin, club.id, team.id, petr.id);
+		const linkToken = tokenOf(core.personalLinkMessage(asAdmin, club.id, petr.id, { origin: ORIGIN, locale: 'cs' }).url);
+		await core.requestSignIn(club.id, 'petr@example.cz', { origin: ORIGIN, locale: 'cs' });
+		const signInToken = /\/sign-in\/(\S+)/.exec(mailer.sent[0].text)![1];
+		const { sessionToken } = core.signIn(club.id, signInToken)!;
+
+		expect(core.savedLanguage({ linkToken })).toBeNull();
+		core.saveLanguageForDevice({ linkToken }, 'en');
+		expect(core.savedLanguage({ linkToken })).toBe('en');
+		expect(core.savedLanguage({ sessionToken })).toBe('en');
+
+		core.saveLanguageForDevice({ sessionToken }, 'cs');
+		expect(core.savedLanguage({ linkToken })).toBe('cs');
+		expect(core.savedLanguage({})).toBeNull();
+	});
+
+	it("without any saved preference: the browser's language, then Czech", () => {
+		const { core } = setup();
+
+		expect(core.resolveLocale({ memberPreference: null, acceptLanguage: 'en-US,en;q=0.9' })).toBe('en');
+		expect(core.resolveLocale({ memberPreference: null, acceptLanguage: 'de' })).toBe('cs');
+		expect(core.resolveLocale({})).toBe('cs');
+	});
 });
+

@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { newSecret } from '../core/secrets';
 import { DEFAULT_TIME_ZONE } from '../core/club-core';
 
 /**
@@ -67,7 +68,7 @@ export function seedBuilders(db: Database.Database) {
 				input.email?.toLowerCase() ?? null,
 				input.isAdmin ? 1 : 0,
 				input.active === false ? 0 : 1,
-				randomBytes(32).toString('base64url')
+				newSecret()
 			);
 			return { id, ...input };
 		}
