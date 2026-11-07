@@ -7,6 +7,13 @@
 	const base = $derived(`/${data.club.slug}`);
 </script>
 
+<svelte:head>
+	<link rel="manifest" href="{base}/manifest.webmanifest" crossorigin="use-credentials" />
+	<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+	<meta name="theme-color" content="#155e3d" />
+	<meta name="apple-mobile-web-app-title" content={data.club.name} />
+</svelte:head>
+
 <nav class="club-nav">
 	{#if data.member}
 		<a href="{base}/me">{t('nav.me')}</a>

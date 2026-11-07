@@ -1,20 +1,25 @@
 import { databasePath, openDatabase } from './db/open';
 import { createClubCore, type ClubCore } from './core/club-core';
-import { systemClock } from './core/ports';
+import { systemClock, type Notifier } from './core/ports';
 import { createMailer } from './mailer';
+import { createVapidSender, createWebPushNotifier, vapidConfig } from './web-push-notifier';
 
 let core: ClubCore | undefined;
 
 /** The club core used by the running app, over the database at DATABASE_PATH. */
 export function appCore(): ClubCore {
 	if (!core) {
-		core = createClubCore({
+		const vapid = vapidConfig();
+		// The notifier needs the core (subscriptions, texts) and the core needs the notifier: tie them late.
+		let notifier: Notifier = { send: (intent) => console.info('[notify]', intent.kind, intent.recipientMemberId) };
+		const created = createClubCore({
 			db: openDatabase(databasePath()),
 			clock: systemClock,
-			// Real delivery (web push) arrives in ticket 12.
-			notifier: { send: (intent) => console.info('[notify]', intent.kind, intent.recipientMemberId) },
+			notifier: { send: (intent) => notifier.send(intent) },
 			mailer: createMailer()
 		});
+		if (vapid) notifier = createWebPushNotifier({ core: created, send: createVapidSender(vapid) });
+		core = created;
 	}
 	return core;
 }

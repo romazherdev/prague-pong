@@ -11,6 +11,8 @@ The app is one Node process (SvelteKit + adapter-node) with one SQLite file. Run
 | `PORT` | `3000` | HTTP port |
 | `ORIGIN` | — (**required in production**) | Public URL, e.g. `https://pong.example`. Sign-in links are built from it, never from the request, so a forged Host header can't redirect them. Set in `fly.toml`; on a VPS set it in the systemd unit |
 | `RESEND_API_KEY` | — | Sends sign-in emails through [Resend](https://resend.com). Without it, emails are printed to the server log |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | — | Keys for push notifications. Generate once with `npx web-push generate-vapid-keys` and keep them: new keys invalidate every device's subscription. Without them the app works, push is just off |
+| `VAPID_SUBJECT` | — | Contact for push services, e.g. `mailto:admin@pong.example` |
 | `MAIL_FROM` | — | Sender for sign-in emails, e.g. `Prague Pong <noreply@pong.example>` (domain verified in Resend) |
 
 The app must sit behind HTTPS. adapter-node assumes `https` when working out the request origin, which SvelteKit uses for its cross-site form check. Plain-HTTP access in production makes form posts (e.g. the language switch) fail with 403.
@@ -87,3 +89,10 @@ npm run setup:admin -- --club mladi-veterani --name "Jana Nováková" --email ja
 ```
 
 Then open `/mladi-veterani/sign-in`, enter that email and follow the link. Until `RESEND_API_KEY` is set the link appears in the server log (`fly logs` or `journalctl -u prague-pong`). Sign-in links work once, for 15 minutes; sessions last 60 days. On the admin page you can make members captains of their teams; captains sign in the same way with the email on their member record.
+
+## Push notifications
+
+1. `npx web-push generate-vapid-keys` (once).
+2. Fly: `fly secrets set VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=mailto:you@example.cz`. VPS: put them in the systemd unit's environment.
+3. Members turn notifications on at the bottom of "Moje akce" (captains also on "Moje zápasy"). On iPhone this works only after "Přidat na plochu" (iOS 16.4+); the app explains it. The installed app opens at the member's own link, so it knows who they are.
+4. Push needs HTTPS (it does not work over plain HTTP, except on localhost).

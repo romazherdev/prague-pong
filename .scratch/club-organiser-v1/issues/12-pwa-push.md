@@ -4,7 +4,7 @@
 
 **Blocked by:** 11
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Web app manifest and service worker, so the app can be installed on Android and iOS; opening the installed app keeps the member's identity
 - [ ] A member can turn push notifications on and off; subscriptions are stored per member and device

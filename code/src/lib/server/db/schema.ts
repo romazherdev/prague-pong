@@ -125,6 +125,17 @@ const migrations: string[] = [
 	// Drop-outs (ticket 11): a spot is open when a player answered "no" after being picked.
 	`
 	ALTER TABLE lineup_players ADD COLUMN picked_at TEXT NOT NULL DEFAULT '';
+	`,
+	// Push notifications (ticket 12): one row per device (browser push endpoint), owned by one member.
+	`
+	CREATE TABLE push_subscriptions (
+		endpoint TEXT PRIMARY KEY,
+		member_id TEXT NOT NULL REFERENCES members(id),
+		p256dh TEXT NOT NULL,
+		auth TEXT NOT NULL,
+		created_at TEXT NOT NULL
+	);
+	CREATE INDEX push_subscriptions_member ON push_subscriptions (member_id);
 	`
 ];
 

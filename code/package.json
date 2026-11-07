@@ -27,6 +27,7 @@
 		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
 		"@types/better-sqlite3": "^9.6.0",
+		"@types/web-push": "^3.6.4",
 		"svelte": "^5.57.2",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
@@ -35,6 +36,7 @@
 	},
 	"dependencies": {
 		"better-sqlite3": "^13.0.3",
-		"tsx": "^4.23.15"
+		"tsx": "^4.23.15",
+		"web-push": "^4.0.0"
 	}
 }

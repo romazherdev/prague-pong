@@ -26,7 +26,8 @@ export type InvalidInputCode =
 	| 'lineupDuplicate'
 	| 'settingsInvalid'
 	| 'dateInvalid'
-	| 'rescheduleInPast';
+	| 'rescheduleInPast'
+	| 'pushSubscriptionInvalid';
 
 /** The input breaks a rule; `code` says which, so routes can show a translated message. */
 export class InvalidInputError extends Error {

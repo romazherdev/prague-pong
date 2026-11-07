@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AnswerButtons from '#lib/components/AnswerButtons.svelte';
 	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
+	import PushToggle from '#lib/components/PushToggle.svelte';
 	import { firstName, formatMatchTime, translator } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
@@ -56,6 +57,7 @@
 		{#if events.team}<p class="hint">{t('me.otherTeamsHint')}</p>{/if}
 		{@render list(others)}
 	{/if}
+	<PushToggle clubSlug={data.club.slug} vapidPublicKey={data.vapidPublicKey} locale={data.locale} />
 {/if}
 
 <style>
