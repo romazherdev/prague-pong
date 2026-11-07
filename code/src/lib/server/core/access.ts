@@ -128,9 +128,25 @@ export function accessRules(db: Database.Database) {
 		}
 	};
 
+	/** The team's captain, if it has an active one. */
+	const activeCaptainOf = (teamId: string) =>
+		(
+			db.prepare('SELECT m.id FROM teams t JOIN members m ON m.id = t.captain_member_id WHERE t.id = ? AND m.active = 1').get(teamId) as
+				| { id: string }
+				| undefined
+		)?.id;
+
+	/** The club's active admins, by name. */
+	const activeAdminIds = (clubId: string) =>
+		(db.prepare('SELECT id FROM members WHERE club_id = ? AND is_admin = 1 AND active = 1 ORDER BY name').all(clubId) as { id: string }[]).map(
+			(m) => m.id
+		);
+
 	return {
 		member,
 		isActiveMemberOf,
+		activeCaptainOf,
+		activeAdminIds,
 		requireMember,
 		isAdmin,
 		requireAdmin,

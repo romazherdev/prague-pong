@@ -1,5 +1,6 @@
 <script lang="ts">
 	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
+	import SpotOpenBadge from '#lib/components/SpotOpenBadge.svelte';
 	import { formatMatchTime, translator } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
@@ -19,7 +20,7 @@
 					<span class="when">{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</span>
 					<span class="what"><strong>{t('match.team', { team: match.team.name })}</strong> {t('match.versus', { opponent: match.opponent })}</span>
 					<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
-					{#if match.spotsOpen}<span class="spot-open">{t('spotOpen.label', { count: String(match.spotsOpen) })}</span>{/if}
+					<SpotOpenBadge count={match.spotsOpen} locale={data.locale} />
 					{#if match.needsAttention}<span class="attention">{t('lineup.needsAttention')}</span>{/if}
 					<span class="answers">
 						<span class="yes">{t('responses.yes', { count: String(match.answers.yes) })}</span>
@@ -46,14 +47,6 @@
 	}
 	.what {
 		width: 100%;
-	}
-	.spot-open {
-		background: #dc2626;
-		color: #fff;
-		border-radius: 999px;
-		padding: 0 0.5rem;
-		font-size: 0.8rem;
-		font-weight: 700;
 	}
 	.attention {
 		background: #1d4ed8;

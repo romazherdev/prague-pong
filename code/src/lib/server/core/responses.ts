@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { accessRules, InvalidInputError, NotFoundError, type Actor } from './access';
 import type { calendarModule, Team } from './calendar';
-import type { Clock } from './ports';
+import type { Clock, NotificationIntent, Notifier } from './ports';
 
 import type { MatchAnswer } from '#lib/answers.js';
 
@@ -26,17 +26,32 @@ export type MatchResponses = Record<MatchAnswer, ResponseListMember[]> & {
 /** A member's answer to a match, and whether it still has to be confirmed after a reschedule. */
 export type MyResponse = { answer: MatchAnswer; needsReconfirm: boolean };
 
+/** Sends intents one by one. A failed delivery is logged, never undoes what already happened. */
+export function deliver(notifier: Notifier, intents: NotificationIntent[]): void {
+	for (const intent of intents) {
+		try {
+			void Promise.resolve(notifier.send(intent)).catch((e) => console.error('[notify] delivery failed', intent.kind, e));
+		} catch (e) {
+			console.error('[notify] delivery failed', intent.kind, e);
+		}
+	}
+}
+
 /** An answer that changed, for modules that react to it (e.g. drop-outs). `before` is null for a first answer. */
 export type AnswerChange = { clubId: string; matchId: string; memberId: string; before: MyResponse | null; after: MatchAnswer };
 
 export function responsesModule(deps: {
 	db: Database.Database;
 	clock: Clock;
+	notifier: Notifier;
 	calendar: ReturnType<typeof calendarModule>;
-	/** Called after every recorded answer, inside the same transaction. */
-	onAnswerChanged?: (change: AnswerChange) => void;
+	/**
+	 * Called for every recorded answer, inside its transaction. Returns who to notify; the intents are
+	 * delivered only after the answer is saved.
+	 */
+	onAnswerChanged?: (change: AnswerChange) => NotificationIntent[];
 }) {
-	const { db, clock, calendar, onAnswerChanged } = deps;
+	const { db, clock, notifier, calendar, onAnswerChanged } = deps;
 	const rules = accessRules(db);
 
 	function previous(matchId: string, memberId: string): MyResponse | null {
@@ -53,15 +68,16 @@ export function responsesModule(deps: {
 			const match = calendar.getMatch(clubId, matchId);
 			if (!match) throw new NotFoundError('No such match in this club');
 			if (match.isPast) throw new InvalidInputError('matchPast');
-			const before = previous(matchId, me.id);
-			db.transaction(() => {
+			const intents = db.transaction(() => {
+				const before = previous(matchId, me.id);
 				db.prepare(
 				`INSERT INTO match_responses (match_id, member_id, answer, answered_at, needs_reconfirm) VALUES (?, ?, ?, ?, 0)
 				 ON CONFLICT (match_id, member_id) DO UPDATE
 				 SET answer = excluded.answer, answered_at = excluded.answered_at, needs_reconfirm = 0`
 			).run(matchId, me.id, answer, clock.now().toISOString());
-				onAnswerChanged?.({ clubId, matchId, memberId: me.id, before, after: answer });
+				return onAnswerChanged?.({ clubId, matchId, memberId: me.id, before, after: answer }) ?? [];
 			})();
+			deliver(notifier, intents);
 		},
 
 		/** All of a member's answers, by match id (for "my events"). */

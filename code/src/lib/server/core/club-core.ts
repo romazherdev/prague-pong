@@ -25,11 +25,10 @@ export type ClubCore = ReturnType<typeof createClubCore>;
  */
 export function createClubCore(deps: CoreDeps) {
 	const calendar = calendarModule(deps);
-	// Responses report answer changes; drop-outs (built after line-ups) react to them.
-	let dropouts: ReturnType<typeof dropoutsModule> | undefined;
-	const responses = responsesModule({ ...deps, calendar, onAnswerChanged: (change) => dropouts?.onAnswerChanged(change) });
 	const lineups = lineupsModule({ ...deps, calendar });
-	dropouts = dropoutsModule({ ...deps, calendar, lineups });
+	const dropouts = dropoutsModule({ ...deps, calendar, lineups });
+	// Responses report each answer change; drop-outs decide whom to notify.
+	const responses = responsesModule({ ...deps, calendar, onAnswerChanged: dropouts.onAnswerChanged });
 	const settings = settingsModule(deps);
 	const clashes = clashesModule({ ...deps, calendar, lineups, settings });
 	return {

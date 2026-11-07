@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ClashNotes from '#lib/components/ClashNotes.svelte';
 	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
+	import SpotOpenBadge from '#lib/components/SpotOpenBadge.svelte';
 	import { formatMatchTime, translator } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
@@ -72,7 +73,7 @@
 									<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
 									{match.venue.name}
 								</div>
-								{#if match.spotsOpen}<p class="spot-open">{t('spotOpen.label', { count: String(match.spotsOpen) })}</p>{/if}
+								<SpotOpenBadge count={match.spotsOpen} locale={data.locale} />
 							</a>
 						</li>
 					{/each}
@@ -130,15 +131,6 @@
 		padding: 0.75rem 1rem;
 		color: inherit;
 		text-decoration: none;
-	}
-	.spot-open {
-		margin: 0.25rem 0 0;
-		color: #fff;
-		background: #dc2626;
-		border-radius: 0.375rem;
-		padding: 0.125rem 0.5rem;
-		font-weight: 700;
-		display: inline-block;
 	}
 	.evenings {
 		display: grid;

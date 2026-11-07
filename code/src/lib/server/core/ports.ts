@@ -6,7 +6,7 @@ export interface Clock {
 export type NotificationIntent = { kind: string; recipientMemberId: string; data: Record<string, unknown> };
 
 export interface Notifier {
-	send(intent: NotificationIntent): void;
+	send(intent: NotificationIntent): void | Promise<void>;
 }
 
 export const systemClock: Clock = { now: () => new Date() };

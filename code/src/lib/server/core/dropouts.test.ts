@@ -20,6 +20,7 @@ function setup() {
 	const petr = member('Petr');
 	core.recordResponse(petr.link, club.id, match.id, 'yes');
 	core.setLineup(captain.session, club.id, match.id, [petr.id, captain.id]);
+	harness.clock.set('2026-11-11T09:00:00Z'); // later answers come after the line-up was picked
 	return { ...harness, club, teamA, venue, match, admin, asAdmin, member, captain, petr };
 }
 
@@ -99,4 +100,28 @@ describe('a line-up player drops out', () => {
 		expect(core.clubCalendar(club.id).matches.find((m) => m.id === match.id)?.spotsOpen).toBe(1);
 		expect(core.captainMatches(captain.session, club.id)[0].spotsOpen).toBe(1);
 	});
+
+	it("isn't a drop-out when the captain picked someone who had already said no (that's a warning instead)", () => {
+		const { core, club, match, captain, member, notifier } = setup();
+		const pavel = member('Pavel');
+		core.recordResponse(pavel.link, club.id, match.id, 'no');
+
+		core.setLineup(captain.session, club.id, match.id, [pavel.id, captain.id]);
+
+		const view = core.lineupView(captain.session, club.id, match.id);
+		expect(view.spotsOpen).toEqual([]);
+		expect(view.warnings.find((w) => w.memberId === pavel.id)?.answer).toBe('no');
+		expect(notifier.sent).toEqual([]);
+	});
+
+	it('sends notifications only after the answer is saved, and a failing delivery does not undo the answer', () => {
+		const { core, club, match, petr, notifier } = setup();
+		notifier.send = () => {
+			throw new Error('push service down');
+		};
+
+		expect(() => core.recordResponse(petr.link, club.id, match.id, 'no')).not.toThrow();
+		expect(core.myResponse(petr.link, club.id, match.id)?.answer).toBe('no');
+	});
 });
+

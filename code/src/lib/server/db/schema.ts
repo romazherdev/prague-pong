@@ -121,6 +121,10 @@ const migrations: string[] = [
 	`
 	ALTER TABLE match_responses ADD COLUMN needs_reconfirm INTEGER NOT NULL DEFAULT 0;
 	ALTER TABLE matches ADD COLUMN lineup_needs_attention INTEGER NOT NULL DEFAULT 0;
+	`,
+	// Drop-outs (ticket 11): a spot is open when a player answered "no" after being picked.
+	`
+	ALTER TABLE lineup_players ADD COLUMN picked_at TEXT NOT NULL DEFAULT '';
 	`
 ];
 
