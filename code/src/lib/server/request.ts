@@ -3,6 +3,7 @@ import { translator } from '#lib/i18n/messages.js';
 import type { Locale } from '#lib/i18n/locales.js';
 import { appCore, MEMBER_COOKIE, SESSION_COOKIE } from './app';
 import { ForbiddenError, InvalidInputError, NotFoundError } from './core/access';
+import { isMatchAnswer } from './core/responses';
 
 /**
  * The club in the URL, whoever is signed in to it (session) and the member whose personal link this device
@@ -47,4 +48,20 @@ export function guardedForm<T>(req: Parameters<typeof guarded>[0], fn: () => T) 
 /** Sets the personal-link cookie for a year. */
 export function rememberMember(cookies: Cookies, token: string) {
 	cookies.set(MEMBER_COOKIE, token, { path: '/', httpOnly: true, sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 });
+}
+
+/**
+ * Handles an answer form (AnswerButtons): records the answer of the device's member (personal link,
+ * else the signed-in member).
+ */
+export async function answerAction(event: Parameters<typeof clubRequest>[0] & { request: Request }) {
+	const req = clubRequest(event);
+	const form = await event.request.formData();
+	const matchId = String(form.get('matchId') ?? '');
+	const answer = form.get('answer');
+	if (!isMatchAnswer(answer)) return fail(400, { error: 'answerInvalid' as const });
+	return guardedForm(req, () => {
+		req.core.recordResponse(req.member?.actor ?? req.actor, req.club.id, matchId, answer);
+		return { answered: matchId };
+	});
 }

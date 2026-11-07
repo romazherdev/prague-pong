@@ -4,7 +4,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] The club core has a "record response" command (member, match, yes, maybe or no); the latest answer wins
 - [ ] Members can answer for matches of any team (so they can be substitutes)

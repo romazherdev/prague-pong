@@ -89,6 +89,16 @@ const migrations: string[] = [
 		UNIQUE (club_id, entry_key)
 	);
 	CREATE UNIQUE INDEX members_stis_player ON members (club_id, stis_player_id);
+	`,
+	// Members' answers to matches (ticket 07). One row per member and match: the latest answer wins.
+	`
+	CREATE TABLE match_responses (
+		match_id TEXT NOT NULL REFERENCES matches(id),
+		member_id TEXT NOT NULL REFERENCES members(id),
+		answer TEXT NOT NULL CHECK (answer IN ('yes', 'maybe', 'no')),
+		answered_at TEXT NOT NULL,
+		PRIMARY KEY (match_id, member_id)
+	);
 	`
 ];
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
+	import AnswerButtons from '#lib/components/AnswerButtons.svelte';
 	import { mapLinks } from '#lib/maps.js';
 	import { formatClockTime, formatMatchDay, translator } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
@@ -49,6 +50,25 @@
 	{/if}
 </dl>
 
+{#if data.canAnswer}
+	<h2>{t('answer.question')}</h2>
+	<AnswerButtons matchId={match.id} current={data.myAnswer} locale={data.locale} />
+{/if}
+
+{#if data.responses}
+	{@const r = data.responses}
+	<h2>{t('responses.title')}</h2>
+	<dl class="responses">
+		{#each [['yes', r.yes], ['maybe', r.maybe], ['no', r.no], ['unanswered', r.unanswered]] as const as [key, list] (key)}
+			<dt class={key}>{t(`responses.${key}`, { count: String(list.length) })}</dt>
+			<dd>
+				{#each list as m, i (m.id)}{i > 0 ? ', ' : ''}{m.name}{#if m.isSubstitute && m.team}
+						<span class="sub">({m.team.name})</span>{/if}{:else}–{/each}
+			</dd>
+		{/each}
+	</dl>
+{/if}
+
 <h2>{t('match.openInMaps')}</h2>
 <p class="maps">
 	<a class="button" href={maps.mapyCz} target="_blank" rel="noopener noreferrer">Mapy.cz</a>
@@ -93,6 +113,24 @@
 	}
 	h2 {
 		font-size: 1.125rem;
+	}
+	.responses dt {
+		text-transform: none;
+		letter-spacing: 0;
+		font-weight: 700;
+		font-size: 1rem;
+	}
+	.responses .yes {
+		color: #15803d;
+	}
+	.responses .maybe {
+		color: #a16207;
+	}
+	.responses .no {
+		color: #b91c1c;
+	}
+	.sub {
+		color: #555;
 	}
 	.maps {
 		display: flex;

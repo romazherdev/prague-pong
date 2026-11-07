@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { firstName, translator } from '#lib/i18n/messages.js';
 import { isLocale, type Locale } from '#lib/i18n/locales.js';
 import { accessRules, InvalidInputError, normaliseEmail, NotFoundError, type Actor } from './access';
-import type { CalendarMatch, calendarModule, Team } from './calendar';
+import type { Team } from './calendar';
 import type { Clock } from './ports';
 import { newSecret } from './secrets';
 
@@ -20,13 +20,6 @@ export type PersonalLinkMember = { actor: Actor; name: string; language: Locale 
 
 /** The cookies that can tell who uses a device. */
 export type DeviceIdentity = { linkToken?: string; sessionToken?: string };
-
-export type MyEvents = {
-	name: string;
-	team: Team | null;
-	/** Upcoming matches of the whole club; `isMyTeam` marks the member's own team's. */
-	matches: (CalendarMatch & { isMyTeam: boolean })[];
-};
 
 type MemberRow = {
 	id: string;
@@ -73,8 +66,8 @@ function validMemberDetails(db: Database.Database, clubId: string, input: { name
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'cs');
 
-export function membersModule(deps: { db: Database.Database; clock: Clock; calendar: ReturnType<typeof calendarModule> }) {
-	const { db, clock, calendar } = deps;
+export function membersModule(deps: { db: Database.Database; clock: Clock }) {
+	const { db, clock } = deps;
 	const rules = accessRules(db);
 
 	const listByActive = (clubId: string, active: boolean) =>
@@ -187,18 +180,6 @@ export function membersModule(deps: { db: Database.Database; clock: Clock; calen
 					language: isLocale(row.language) ? row.language : null
 				}
 			);
-		},
-
-		/** What the member sees when they open their link: the club's upcoming matches. */
-		myUpcomingEvents(actor: Actor | undefined, clubId: string): MyEvents {
-			const me = rules.requireMember(actor, clubId);
-			const row = db.prepare(`${MEMBER_SELECT} WHERE m.id = ?`).get(me.id) as MemberRow;
-			const team = toSummary(row).team;
-			return {
-				name: me.name,
-				team,
-				matches: calendar.listMatches(clubId).map((m) => ({ ...m, isMyTeam: m.team.id === team?.id }))
-			};
 		},
 
 		/** Saves the member's language, so it applies on every device they open their link on. */

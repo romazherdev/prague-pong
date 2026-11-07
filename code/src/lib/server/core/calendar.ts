@@ -230,6 +230,12 @@ export function calendarModule(deps: { db: Database.Database; clock: Clock }) {
 				.map(toCalendarMatch);
 		},
 
+		/** True once the match's day (in the club's time zone) is over: the same rule the calendar uses. */
+		isPast(clubId: string, startsAt: string): boolean {
+			const timeZone = clubTimeZone(clubId) ?? DEFAULT_TIME_ZONE;
+			return localDate(new Date(startsAt), timeZone) < localDate(clock.now(), timeZone);
+		},
+
 		/** One of the club's matches, past or upcoming; undefined if the club has no such match. */
 		getMatch(clubId: string, matchId: string): MatchDetail | undefined {
 			const row = db.prepare(`${MATCH_SELECT} WHERE m.club_id = ? AND m.id = ?`).get(clubId, matchId) as

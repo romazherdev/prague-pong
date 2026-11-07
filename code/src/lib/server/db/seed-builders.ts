@@ -57,10 +57,17 @@ export function seedBuilders(db: Database.Database) {
 			);
 			return { id, ...input };
 		},
-		member(input: { clubId: string; name: string; email?: string; isAdmin?: boolean; active?: boolean }) {
+		member(input: {
+			clubId: string;
+			name: string;
+			email?: string;
+			isAdmin?: boolean;
+			active?: boolean;
+			teamId?: string | null;
+		}) {
 			const id = randomUUID();
 			db.prepare(
-				'INSERT INTO members (id, club_id, name, email, is_admin, active, link_token) VALUES (?, ?, ?, ?, ?, ?, ?)'
+				'INSERT INTO members (id, club_id, name, email, is_admin, active, link_token, team_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
 			).run(
 				id,
 				input.clubId,
@@ -68,7 +75,8 @@ export function seedBuilders(db: Database.Database) {
 				input.email?.toLowerCase() ?? null,
 				input.isAdmin ? 1 : 0,
 				input.active === false ? 0 : 1,
-				newSecret()
+				newSecret(),
+				input.teamId ?? null
 			);
 			return { id, ...input };
 		}
