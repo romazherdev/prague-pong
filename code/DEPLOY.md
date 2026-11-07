@@ -9,6 +9,9 @@ The app is one Node process (SvelteKit + adapter-node) with one SQLite file. Run
 | `DATABASE_PATH` | `data/prague-pong.db` | SQLite file; created and migrated on start |
 | `DEFAULT_CLUB_SLUG` | `mladi-veterani` | Club shown at `/` |
 | `PORT` | `3000` | HTTP port |
+| `ORIGIN` | (from request) | Public URL, e.g. `https://pong.example`; set it behind a proxy so sign-in links point to the right host |
+| `RESEND_API_KEY` | — | Sends sign-in emails through [Resend](https://resend.com). Without it, emails are printed to the server log |
+| `MAIL_FROM` | — | Sender for sign-in emails, e.g. `Prague Pong <noreply@pong.example>` (domain verified in Resend) |
 
 The app must sit behind HTTPS. adapter-node assumes `https` when working out the request origin, which SvelteKit uses for its cross-site form check. Plain-HTTP access in production makes form posts (e.g. the language switch) fail with 403.
 
@@ -74,3 +77,13 @@ npm run dev
 npm test          # club core tests (in-memory SQLite, fixed clock, fake notifier)
 npm run check     # typecheck
 ```
+
+## First admin
+
+After the first import (which creates the club), make yourself admin:
+
+```sh
+npm run setup:admin -- --club mladi-veterani --name "Jana Nováková" --email jana@example.cz
+```
+
+Then open `/mladi-veterani/sign-in`, enter that email and follow the link. Until `RESEND_API_KEY` is set the link appears in the server log (`fly logs` or `journalctl -u prague-pong`). Sign-in links work once, for 15 minutes; sessions last 60 days. On the admin page you can make members captains of their teams; captains sign in the same way with the email on their member record.
