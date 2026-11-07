@@ -72,6 +72,7 @@
 									<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
 									{match.venue.name}
 								</div>
+								{#if match.spotsOpen}<p class="spot-open">{t('spotOpen.label', { count: String(match.spotsOpen) })}</p>{/if}
 							</a>
 						</li>
 					{/each}
@@ -129,6 +130,15 @@
 		padding: 0.75rem 1rem;
 		color: inherit;
 		text-decoration: none;
+	}
+	.spot-open {
+		margin: 0.25rem 0 0;
+		color: #fff;
+		background: #dc2626;
+		border-radius: 0.375rem;
+		padding: 0.125rem 0.5rem;
+		font-weight: 700;
+		display: inline-block;
 	}
 	.evenings {
 		display: grid;

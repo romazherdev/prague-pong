@@ -26,9 +26,25 @@ export type MatchResponses = Record<MatchAnswer, ResponseListMember[]> & {
 /** A member's answer to a match, and whether it still has to be confirmed after a reschedule. */
 export type MyResponse = { answer: MatchAnswer; needsReconfirm: boolean };
 
-export function responsesModule(deps: { db: Database.Database; clock: Clock; calendar: ReturnType<typeof calendarModule> }) {
-	const { db, clock, calendar } = deps;
+/** An answer that changed, for modules that react to it (e.g. drop-outs). `before` is null for a first answer. */
+export type AnswerChange = { clubId: string; matchId: string; memberId: string; before: MyResponse | null; after: MatchAnswer };
+
+export function responsesModule(deps: {
+	db: Database.Database;
+	clock: Clock;
+	calendar: ReturnType<typeof calendarModule>;
+	/** Called after every recorded answer, inside the same transaction. */
+	onAnswerChanged?: (change: AnswerChange) => void;
+}) {
+	const { db, clock, calendar, onAnswerChanged } = deps;
 	const rules = accessRules(db);
+
+	function previous(matchId: string, memberId: string): MyResponse | null {
+		const row = db
+			.prepare('SELECT answer, needs_reconfirm FROM match_responses WHERE match_id = ? AND member_id = ?')
+			.get(matchId, memberId) as { answer: MatchAnswer; needs_reconfirm: number } | undefined;
+		return row ? { answer: row.answer, needsReconfirm: row.needs_reconfirm === 1 } : null;
+	}
 
 	return {
 		/** A member's answer to a match of any team; answering again replaces it. Upcoming matches only. */
@@ -37,11 +53,15 @@ export function responsesModule(deps: { db: Database.Database; clock: Clock; cal
 			const match = calendar.getMatch(clubId, matchId);
 			if (!match) throw new NotFoundError('No such match in this club');
 			if (match.isPast) throw new InvalidInputError('matchPast');
-			db.prepare(
+			const before = previous(matchId, me.id);
+			db.transaction(() => {
+				db.prepare(
 				`INSERT INTO match_responses (match_id, member_id, answer, answered_at, needs_reconfirm) VALUES (?, ?, ?, ?, 0)
 				 ON CONFLICT (match_id, member_id) DO UPDATE
 				 SET answer = excluded.answer, answered_at = excluded.answered_at, needs_reconfirm = 0`
 			).run(matchId, me.id, answer, clock.now().toISOString());
+				onAnswerChanged?.({ clubId, matchId, memberId: me.id, before, after: answer });
+			})();
 		},
 
 		/** All of a member's answers, by match id (for "my events"). */
@@ -57,10 +77,7 @@ export function responsesModule(deps: { db: Database.Database; clock: Clock; cal
 		/** The member's current answer to a match, or null if they haven't answered. */
 		myResponse(actor: Actor | undefined, clubId: string, matchId: string): MyResponse | null {
 			const me = rules.requireMember(actor, clubId);
-			const row = db
-				.prepare('SELECT answer, needs_reconfirm FROM match_responses WHERE match_id = ? AND member_id = ?')
-				.get(matchId, me.id) as { answer: MatchAnswer; needs_reconfirm: number } | undefined;
-			return row ? { answer: row.answer, needsReconfirm: row.needs_reconfirm === 1 } : null;
+			return previous(matchId, me.id);
 		},
 
 		/** Who said yes, maybe or no to a match, and who on its team hasn't answered. Active members only. */

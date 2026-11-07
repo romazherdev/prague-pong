@@ -4,7 +4,7 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] A line-up player changing to no marks their spot as open (they stay listed as dropped until the captain replaces or removes them)
 - [ ] The match shows "spot open" in red in the captain's view and in the calendar

@@ -54,7 +54,10 @@
 	<section class="lineup">
 		<h2>{t('lineup.title')}</h2>
 		{#if data.lineup.length}
-			<p>{data.lineup.map((p) => p.name).join(', ')}</p>
+			<p>
+				{#each data.lineup as p, i (p.id)}{i > 0 ? ', ' : ''}<span class:dropped={p.droppedOut}>{p.name}</span>{/each}
+			</p>
+			{#if data.lineup.some((p) => p.droppedOut)}<p class="spot-open">{t('spotOpen.label', { count: String(data.lineup.filter((p) => p.droppedOut).length) })}</p>{/if}
 		{:else}
 			<p class="hint">{t('lineup.empty')}</p>
 		{/if}
@@ -115,6 +118,18 @@
 {#if form && 'rescheduled' in form}<p class="ok">✓ {t('reschedule.done')}</p>{/if}
 
 <style>
+	.dropped {
+		text-decoration: line-through;
+		color: #b91c1c;
+	}
+	.spot-open {
+		display: inline-block;
+		background: #dc2626;
+		color: #fff;
+		border-radius: 0.375rem;
+		padding: 0.125rem 0.5rem;
+		font-weight: 700;
+	}
 	.reschedule {
 		margin-top: 2rem;
 		border-top: 1px solid #e5e5e0;

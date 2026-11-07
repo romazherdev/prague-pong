@@ -34,6 +34,13 @@
 
 <ClashNotes clashes={data.clashes} locale={data.locale} />
 
+{#if data.spotsOpen.length}
+	<div class="spot-open" role="alert">
+		<strong>{t('spotOpen.title')}</strong>
+		<p>{t('spotOpen.hint', { names: data.spotsOpen.map((p) => p.name).join(', ') })}</p>
+	</div>
+{/if}
+
 {#if data.needsAttention}
 	<div class="warning attention" role="status">
 		<strong>{t('lineup.needsAttention')}</strong>
@@ -138,6 +145,16 @@
 	}
 	.answer.reconfirm {
 		color: #1d4ed8;
+	}
+	.spot-open {
+		background: #dc2626;
+		color: #fff;
+		border-radius: 0.5rem;
+		padding: 0.75rem 1rem;
+		margin: 0.75rem 0;
+	}
+	.spot-open p {
+		margin: 0.25rem 0 0;
 	}
 	.attention {
 		margin: 0.75rem 0;

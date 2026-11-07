@@ -17,8 +17,12 @@ export type EveningClash =
 	  }
 	| { kind: 'doubleBooked'; date: string; matchIds: string[]; member: { id: string; name: string } };
 
-/** A calendar match with its evening: the club's local date, which clashes are grouped by. */
-export type EveningMatch = CalendarMatch & { evening: string };
+/** A calendar match with its evening (the club's local date, which clashes are grouped by). */
+export type EveningMatch = CalendarMatch & {
+	evening: string;
+	/** Line-up players who dropped out: the captain has a spot to fill. */
+	spotsOpen: number;
+};
 
 export type ClubCalendar = { matches: EveningMatch[]; clashes: EveningClash[] };
 
@@ -76,9 +80,11 @@ export function clashesModule(deps: {
 		clubCalendar(clubId: string, filter: MatchFilter = {}, viewer?: Actor): ClubCalendar {
 			const all = calendar.listMatches(clubId, { includePast: filter.includePast });
 			const timeZone = calendar.findClubById(clubId)?.timeZone ?? DEFAULT_TIME_ZONE;
+			const spotsOpen = lineups.spotsOpenByMatch(clubId);
 			const matches = (filter.teamId ? all.filter((m) => m.team.id === filter.teamId) : all).map((m) => ({
 				...m,
-				evening: localDate(new Date(m.startsAt), timeZone)
+				evening: localDate(new Date(m.startsAt), timeZone),
+				spotsOpen: spotsOpen.get(m.id) ?? 0
 			}));
 			const shown = new Set(matches.map((m) => m.id));
 			// A double booking names a member, so only members see it; the calendar itself is public.

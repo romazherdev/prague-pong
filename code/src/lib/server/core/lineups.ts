@@ -26,6 +26,8 @@ export type LineupView = {
 	candidates: LineupCandidate[];
 	/** The match was moved since the line-up was last saved or reviewed. */
 	needsAttention: boolean;
+	/** Line-up players who have since answered "no". They stay in the line-up until the captain acts. */
+	spotsOpen: { id: string; name: string }[];
 };
 
 /** A picked player without a current "yes": the captain should check. */
@@ -34,6 +36,8 @@ export type LineupWarning = { memberId: string; name: string; answer: Exclude<Ma
 export type CaptainMatch = CalendarMatch & {
 	/** The match was moved since the line-up was last saved or reviewed. */
 	needsAttention: boolean;
+	/** Line-up players who have since answered "no". */
+	spotsOpen: number;
 	lineupSize: number;
 	lineupMax: number;
 	/** How many active members answered each way; `reconfirm` counts old answers to confirm again. */
@@ -94,6 +98,22 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 			.sort((a, b) => Number(a.fromOtherTeam) - Number(b.fromOtherTeam) || answerRank(a) - answerRank(b) || byName(a, b));
 	}
 
+	const isDroppedOut = (p: LineupCandidate) => p.answer === 'no' && !p.needsReconfirm;
+
+	/** How many line-up players of each of the club's matches have dropped out (answered "no"). */
+	function spotsOpenByMatch(clubId: string): Map<string, number> {
+		const rows = db
+			.prepare(
+				`SELECT l.match_id, count(*) AS n FROM lineup_players l
+				 JOIN matches m ON m.id = l.match_id JOIN members p ON p.id = l.member_id
+				 JOIN match_responses r ON r.match_id = l.match_id AND r.member_id = l.member_id
+				 WHERE m.club_id = ? AND p.active = 1 AND r.answer = 'no' AND r.needs_reconfirm = 0
+				 GROUP BY l.match_id`
+			)
+			.all(clubId) as { match_id: string; n: number }[];
+		return new Map(rows.map((r) => [r.match_id, r.n]));
+	}
+
 	const lineupNeedsAttention = (matchId: string) =>
 		(db.prepare('SELECT lineup_needs_attention AS n FROM matches WHERE id = ?').get(matchId) as { n: number }).n === 1;
 
@@ -114,7 +134,15 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 			const match = managedMatch(actor, clubId, matchId);
 			const candidates = candidatesFor(clubId, match);
 			const lineup = lineupOf(clubId, match);
-			return { match, lineup, candidates, warnings: warningsOf(lineup), maxSize: LINEUP_SIZE, needsAttention: lineupNeedsAttention(matchId) };
+			return {
+				match,
+				lineup,
+				candidates,
+				warnings: warningsOf(lineup),
+				maxSize: LINEUP_SIZE,
+				needsAttention: lineupNeedsAttention(matchId),
+				spotsOpen: lineup.filter(isDroppedOut).map((p) => ({ id: p.id, name: p.name }))
+			};
 		},
 
 		/**
@@ -168,6 +196,7 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 				counts[effectiveAnswer(r.answer, r.needs_reconfirm === 1)!] += r.n;
 				answers.set(r.match_id, counts);
 			}
+			const spotsOpen = spotsOpenByMatch(clubId);
 			return calendar
 				.listMatches(clubId)
 				.filter((m) => isAdmin || captainOf.has(m.team.id))
@@ -175,6 +204,7 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 					...m,
 					lineupSize: sizes.get(m.id) ?? 0,
 					needsAttention: lineupNeedsAttention(m.id),
+					spotsOpen: spotsOpen.get(m.id) ?? 0,
 					lineupMax: LINEUP_SIZE,
 					answers: answers.get(m.id) ?? empty()
 				}));
@@ -196,12 +226,18 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 		},
 
 		/** The match's line-up as any member sees it: names and teams, by name. */
-		matchLineup(actor: Actor | undefined, clubId: string, matchId: string): { id: string; name: string; fromOtherTeam: boolean }[] {
+		matchLineup(
+			actor: Actor | undefined,
+			clubId: string,
+			matchId: string
+		): { id: string; name: string; fromOtherTeam: boolean; droppedOut: boolean }[] {
 			rules.requireMember(actor, clubId);
 			const match = calendar.getMatch(clubId, matchId);
 			if (!match) throw new NotFoundError('No such match in this club');
-			return lineupOf(clubId, match).map((c) => ({ id: c.id, name: c.name, fromOtherTeam: c.fromOtherTeam }));
+			return lineupOf(clubId, match).map((c) => ({ id: c.id, name: c.name, fromOtherTeam: c.fromOtherTeam, droppedOut: isDroppedOut(c) }));
 		},
+
+		spotsOpenByMatch,
 
 		/** Active line-up members of each of the club's matches (for clash checks). */
 		activeLineupsByMatch(clubId: string): Map<string, { id: string; name: string }[]> {

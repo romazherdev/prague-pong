@@ -174,8 +174,8 @@ describe('matchLineup', () => {
 		core.setLineup(captainA.session, club.id, match.id, [petr.id, eva.id]);
 
 		expect(core.matchLineup(petr.link, club.id, match.id)).toEqual([
-			{ id: eva.id, name: 'Eva', fromOtherTeam: true },
-			{ id: petr.id, name: 'Petr', fromOtherTeam: false }
+			{ id: eva.id, name: 'Eva', fromOtherTeam: true, droppedOut: false },
+			{ id: petr.id, name: 'Petr', fromOtherTeam: false, droppedOut: false }
 		]);
 		expect(() => core.matchLineup(undefined, club.id, match.id)).toThrow(ForbiddenError);
 	});
