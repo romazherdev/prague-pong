@@ -44,6 +44,21 @@
 	</section>
 {/if}
 
+<form method="POST" action="?/setTeam" class="stack">
+	<h2>{t('members.team')}</h2>
+	<label>
+		<select name="teamId" value={data.member.team?.id ?? ''}>
+			<option value="">{t('members.noTeam')}</option>
+			{#each data.teams as team (team.id)}
+				<option value={team.id}>{t('match.team', { team: team.name })}</option>
+			{/each}
+		</select>
+	</label>
+	{#if data.member.stisPlayerId}<p class="hint">{t('members.stisLinked', { id: data.member.stisPlayerId })}</p>{/if}
+	{#if form && 'teamSaved' in form}<p class="ok">✓ {t('members.saved')}</p>{/if}
+	<button type="submit">{t('admin.save')}</button>
+</form>
+
 <form method="POST" action="?/update" class="stack">
 	<h2>{t('members.edit')}</h2>
 	<label>

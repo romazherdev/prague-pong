@@ -12,6 +12,7 @@ export const load: PageServerLoad = (event) => {
 		const lang = isLocale(asked) ? asked : defaultLocale;
 		return {
 			member,
+			teams: req.core.listTeams(req.club.id),
 			messageLang: lang,
 			link: member.active
 				? req.core.personalLinkMessage(req.actor, req.club.id, member.id, { origin: publicOrigin(event.url), locale: lang })
@@ -30,6 +31,12 @@ export const actions: Actions = {
 			req.core.updateMember(req.actor, req.club.id, event.params.member, input);
 			return { saved: true };
 		});
+	},
+	setTeam: async (event) => {
+		const req = clubRequest(event);
+		const teamId = String((await event.request.formData()).get('teamId') ?? '') || null;
+		guarded(req, () => req.core.setMemberTeam(req.actor, req.club.id, event.params.member, teamId));
+		return { teamSaved: true };
 	},
 	regenerate: (event) => {
 		const req = clubRequest(event);

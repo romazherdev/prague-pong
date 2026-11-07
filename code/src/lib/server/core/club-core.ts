@@ -3,6 +3,7 @@ import { accessModule } from './access';
 import { calendarModule } from './calendar';
 import { resolveLocale } from './locale';
 import { membersModule } from './members';
+import { rostersModule } from './rosters';
 import type { Clock, Mailer, Notifier } from './ports';
 
 export * from './calendar';
@@ -21,6 +22,7 @@ export function createClubCore(deps: CoreDeps) {
 		resolveLocale,
 		...calendar,
 		...accessModule(deps),
-		...membersModule({ ...deps, calendar })
+		...membersModule({ ...deps, calendar }),
+		...rostersModule(deps)
 	};
 }

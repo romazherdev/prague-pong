@@ -4,7 +4,7 @@
 
 **Blocked by:** 02, 05
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] The STIS adapter parses the rosters (team, player name, STIS player id if available) from the HTML of the club's STIS page; it's tested on a saved real page checked in as a test fixture
 - [ ] A page that can't be parsed fails loudly with no partial data

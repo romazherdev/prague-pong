@@ -3,22 +3,50 @@ import { randomUUID } from 'node:crypto';
 import { firstName, translator } from '#lib/i18n/messages.js';
 import { isLocale, type Locale } from '#lib/i18n/locales.js';
 import { accessRules, InvalidInputError, normaliseEmail, NotFoundError, type Actor } from './access';
-import type { CalendarMatch, calendarModule } from './calendar';
+import type { CalendarMatch, calendarModule, Team } from './calendar';
 import type { Clock } from './ports';
 import { newSecret } from './secrets';
 
-export type MemberSummary = { id: string; name: string; email: string | null; isAdmin: boolean };
+export type MemberSummary = {
+	id: string;
+	name: string;
+	email: string | null;
+	isAdmin: boolean;
+	/** The league team they play for; null for training-only members. */
+	team: Team | null;
+};
 
 export type PersonalLinkMember = { actor: Actor; name: string; language: Locale | null };
 
 /** The cookies that can tell who uses a device. */
 export type DeviceIdentity = { linkToken?: string; sessionToken?: string };
 
-export type MyEvents = { name: string; matches: CalendarMatch[] };
+export type MyEvents = {
+	name: string;
+	team: Team | null;
+	/** Upcoming matches of the whole club; `isMyTeam` marks the member's own team's. */
+	matches: (CalendarMatch & { isMyTeam: boolean })[];
+};
 
-type MemberRow = { id: string; name: string; email: string | null; is_admin: number };
+type MemberRow = {
+	id: string;
+	name: string;
+	email: string | null;
+	is_admin: number;
+	team_id: string | null;
+	team_name: string | null;
+};
 
-const toSummary = (r: MemberRow): MemberSummary => ({ id: r.id, name: r.name, email: r.email, isAdmin: r.is_admin === 1 });
+const MEMBER_SELECT = `SELECT m.id, m.name, m.email, m.is_admin, m.active, m.stis_player_id, t.id AS team_id, t.name AS team_name
+	FROM members m LEFT JOIN teams t ON t.id = m.team_id`;
+
+const toSummary = (r: MemberRow): MemberSummary => ({
+	id: r.id,
+	name: r.name,
+	email: r.email,
+	isAdmin: r.is_admin === 1,
+	team: r.team_id ? { id: r.team_id, name: r.team_name! } : null
+});
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'cs');
 
 export function membersModule(deps: { db: Database.Database; clock: Clock; calendar: ReturnType<typeof calendarModule> }) {
@@ -27,7 +55,7 @@ export function membersModule(deps: { db: Database.Database; clock: Clock; calen
 
 	const listByActive = (clubId: string, active: boolean) =>
 		(
-			db.prepare('SELECT id, name, email, is_admin FROM members WHERE club_id = ? AND active = ?').all(clubId, active ? 1 : 0) as MemberRow[]
+			db.prepare(`${MEMBER_SELECT} WHERE m.club_id = ? AND m.active = ?`).all(clubId, active ? 1 : 0) as MemberRow[]
 		)
 			.map(toSummary)
 			.sort(byName);
@@ -89,7 +117,7 @@ export function membersModule(deps: { db: Database.Database; clock: Clock; calen
 				email,
 				newSecret()
 			);
-			return { id, name, email, isAdmin: false };
+			return { id, name, email, isAdmin: false, team: null };
 		},
 
 		/** Changes a member's name and email. Admins only. */
@@ -164,7 +192,13 @@ export function membersModule(deps: { db: Database.Database; clock: Clock; calen
 		/** What the member sees when they open their link: the club's upcoming matches. */
 		myUpcomingEvents(actor: Actor | undefined, clubId: string): MyEvents {
 			const me = rules.requireMember(actor, clubId);
-			return { name: me.name, matches: calendar.listMatches(clubId) };
+			const row = db.prepare(`${MEMBER_SELECT} WHERE m.id = ?`).get(me.id) as MemberRow;
+			const team = toSummary(row).team;
+			return {
+				name: me.name,
+				team,
+				matches: calendar.listMatches(clubId).map((m) => ({ ...m, isMyTeam: m.team.id === team?.id }))
+			};
 		},
 
 		/** Saves the member's language, so it applies on every device they open their link on. */
@@ -190,11 +224,18 @@ export function membersModule(deps: { db: Database.Database; clock: Clock; calen
 		},
 
 		/** One member of the club, active or not, for the admin's member page. Admins only. */
-		getMember(actor: Actor | undefined, clubId: string, memberId: string): MemberSummary & { active: boolean } {
+		getMember(
+			actor: Actor | undefined,
+			clubId: string,
+			memberId: string
+		): MemberSummary & { active: boolean; stisPlayerId: string | null } {
 			rules.requireAdmin(actor, clubId);
-			const m = memberOfClub(clubId, memberId);
-			const row = db.prepare('SELECT id, name, email, is_admin FROM members WHERE id = ?').get(m.id) as MemberRow;
-			return { ...toSummary(row), active: m.active === 1 };
+			memberOfClub(clubId, memberId);
+			const row = db.prepare(`${MEMBER_SELECT} WHERE m.id = ?`).get(memberId) as MemberRow & {
+				active: number;
+				stis_player_id: string | null;
+			};
+			return { ...toSummary(row), active: row.active === 1, stisPlayerId: row.stis_player_id };
 		}
 	};
 }

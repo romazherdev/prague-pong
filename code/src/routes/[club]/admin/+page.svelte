@@ -7,6 +7,10 @@
 </script>
 
 <h1>{t('admin.title')}</h1>
+<ul class="admin-links">
+	<li><a href="/{data.club.slug}/admin/members">{t('nav.members')}</a></li>
+	<li><a href="/{data.club.slug}/admin/rosters">{t('rosters.title')}</a></li>
+</ul>
 
 <h2>{t('admin.captains')}</h2>
 <ul class="rows">

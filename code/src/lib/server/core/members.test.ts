@@ -183,7 +183,15 @@ describe('getMember', () => {
 		const petr = core.addMember(asAdmin, club.id, { name: 'Petr' });
 		core.deactivateMember(asAdmin, club.id, petr.id);
 
-		expect(core.getMember(asAdmin, club.id, petr.id)).toEqual({ id: petr.id, name: 'Petr', email: null, isAdmin: false, active: false });
+		expect(core.getMember(asAdmin, club.id, petr.id)).toEqual({
+			id: petr.id,
+			name: 'Petr',
+			email: null,
+			isAdmin: false,
+			team: null,
+			active: false,
+			stisPlayerId: null
+		});
 		expect(() => core.getMember(asAdmin, club.id, outsider.id)).toThrow(NotFoundError);
 		expect(() => core.getMember({ via: 'personal-link', memberId: petr.id }, club.id, petr.id)).toThrow(ForbiddenError);
 	});

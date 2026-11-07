@@ -12,12 +12,9 @@
 	<p>{t('me.noLink')}</p>
 {:else}
 	<h1>{t('me.hello', { name: firstName(data.events.name) })}</h1>
-	<h2>{t('me.upcoming')}</h2>
-	{#if data.events.matches.length === 0}
-		<p>{t('calendar.empty')}</p>
-	{:else}
+	{#snippet list(matches: typeof data.events.matches)}
 		<ul class="events">
-			{#each data.events.matches as match (match.id)}
+			{#each matches as match (match.id)}
 				<li>
 					<a class="event" href="/{data.club.slug}/matches/{match.id}">
 						<time datetime={match.startsAt}>{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</time>
@@ -28,6 +25,19 @@
 				</li>
 			{/each}
 		</ul>
+	{/snippet}
+	{@const mine = data.events.matches.filter((m) => m.isMyTeam)}
+	{@const others = data.events.matches.filter((m) => !m.isMyTeam)}
+	{#if data.events.matches.length === 0}
+		<p>{t('calendar.empty')}</p>
+	{/if}
+	{#if mine.length}
+		<h2>{t('me.myTeam', { team: data.events.team?.name ?? '' })}</h2>
+		{@render list(mine)}
+	{/if}
+	{#if others.length}
+		<h2>{data.events.team ? t('me.otherTeams') : t('me.upcoming')}</h2>
+		{@render list(others)}
 	{/if}
 {/if}
 

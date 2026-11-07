@@ -29,6 +29,7 @@
 		<li>
 			<a class="row member" href="{base}/{m.id}">
 				<strong>{m.name}</strong>
+				{#if m.team}<span class="tag team">{m.team.name}</span>{/if}
 				{#if m.isAdmin}<span class="tag">{t('members.adminTag')}</span>{/if}
 				{#if m.email}<span class="hint">{m.email}</span>{/if}
 			</a>
@@ -57,6 +58,9 @@
 		text-decoration: none;
 		align-items: center;
 		min-height: 44px;
+	}
+	.tag.team {
+		background: #e0e7ff;
 	}
 	.tag {
 		background: #fef3c7;

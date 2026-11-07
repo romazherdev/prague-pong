@@ -72,6 +72,22 @@ const migrations: string[] = [
 	ALTER TABLE members ADD COLUMN language TEXT;
 	UPDATE members SET link_token = lower(hex(randomblob(32))) WHERE link_token IS NULL;
 	CREATE UNIQUE INDEX members_link_token ON members (link_token);
+	`,
+	// Team rosters from STIS and team assignment (ticket 06).
+	`
+	ALTER TABLE members ADD COLUMN team_id TEXT REFERENCES teams(id);
+	ALTER TABLE members ADD COLUMN stis_player_id TEXT;
+	-- One row per player on an imported STIS roster; member_id is set once the admin confirms who it is.
+	CREATE TABLE roster_entries (
+		id TEXT PRIMARY KEY,
+		club_id TEXT NOT NULL REFERENCES clubs(id),
+		entry_key TEXT NOT NULL, -- STIS player id, or team + normalised name when STIS gives no id
+		team_id TEXT NOT NULL REFERENCES teams(id),
+		player_name TEXT NOT NULL,
+		stis_player_id TEXT,
+		member_id TEXT REFERENCES members(id),
+		UNIQUE (club_id, entry_key)
+	);
 	`
 ];
 

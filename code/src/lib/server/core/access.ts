@@ -16,7 +16,11 @@ export class ForbiddenError extends Error {
 	override name = 'ForbiddenError';
 }
 
-export type InvalidInputCode = 'nameRequired' | 'emailTaken' | 'emailInvalid' | 'cannotDeactivateSelf';
+export type InvalidInputCode =
+	| 'nameRequired'
+	| 'emailTaken'
+	| 'emailInvalid'
+	| 'cannotDeactivateSelf';
 
 /** The input breaks a rule; `code` says which, so routes can show a translated message. */
 export class InvalidInputError extends Error {
