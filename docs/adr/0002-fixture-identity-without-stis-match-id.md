@@ -13,7 +13,8 @@ A fixture's key is `competition|home team|away team`, e.g. `5TMB|TJ Mladí Veter
 
 ## Consequences
 
-- Re-importing the same file changes nothing; a changed date or venue updates the existing match.
+- Re-importing the same file changes nothing. A fixture whose date, venue or details changed is matched to the existing match, not duplicated. By default the change is reported and not applied (spec: reschedules go through the app so answers get reconfirmed); `--apply-changes` updates in place.
+- Team names are whitespace-normalised before building the key (the export has e.g. "TJ ABC Braník  G" with two spaces). A real rename in STIS would still produce a new key and a duplicate; nothing removes stale matches yet.
 - If a competition ever schedules the same home/away pairing twice (play-offs, a cup), keys would collide and the second match would overwrite the first. The importer would need a sequence number then.
 - A match between two of the club's own teams in the same competition can't be told apart by the prefix rule, and the parser rejects it. That doesn't happen this season (all 4 teams are in different groups).
-- Ticket 10 (reschedules) must decide how an import that moves a date interacts with answers ("please reconfirm"). Until then, an import silently updates the date.
+- Ticket 10 (reschedules) can turn `changedNotApplied` into proper reschedules (answers become "please reconfirm").

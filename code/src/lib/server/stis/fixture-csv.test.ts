@@ -45,6 +45,16 @@ describe('parseStisFixtureCsv (real STIS calendar exports, windows-1250)', () =>
 		});
 	});
 
+	it('collapses repeated spaces in team names, so a tidied name in STIS keeps the same key', () => {
+		const fixtures = parseStisFixtureCsv(fixtureFile('team-A-5TMB.csv'), { clubTeamPrefix: PREFIX });
+
+		// The export spells this opponent "TJ ABC Braník  G" (two spaces)
+		expect(fixtures[3]).toMatchObject({
+			fixtureKey: '5TMB|TJ Mladí Veteráni - VSK ČVUT A|TJ ABC Braník G',
+			opponent: 'TJ ABC Braník G'
+		});
+	});
+
 	it('gives every fixture of every team a distinct key (each pairing is played home and away)', () => {
 		const all = ['team-A-5TMB.csv', 'team-B-6TMA.csv', 'team-C-7TMB.csv', 'team-D-7TMA.csv'].flatMap((f) =>
 			parseStisFixtureCsv(fixtureFile(f), { clubTeamPrefix: PREFIX })
@@ -74,6 +84,11 @@ describe('parseStisFixtureCsv (real STIS calendar exports, windows-1250)', () =>
 		it('rejects an invalid date', () => {
 			const csv = header + row('TTC Praha E - TJ Mladí Veteráni - VSK ČVUT A', '31/02/2026');
 			expect(() => parseStisFixtureCsv(utf8(csv), { clubTeamPrefix: PREFIX })).toThrow(StisParseError);
+		});
+
+		it('rejects an all-day event (a match always has a start time)', () => {
+			const csv = header + row('TTC Praha E - TJ Mladí Veteráni - VSK ČVUT A').replace('FALSE,"TTC', 'TRUE,"TTC');
+			expect(() => parseStisFixtureCsv(utf8(csv), { clubTeamPrefix: PREFIX })).toThrow(/all-day/);
 		});
 
 		it('rejects an export with no matches', () => {

@@ -15,7 +15,7 @@ export type StisFixture = {
 	opponent: string;
 	isHome: boolean;
 	venue: { name: string; address: string };
-	/** Wall-clock time at the venue (Prague), "YYYY-MM-DDTHH:mm". Not UTC. */
+	/** Wall-clock time as STIS lists it (Czech local time), "YYYY-MM-DDTHH:mm". Not UTC. */
 	startsLocal: string;
 	endsLocal: string;
 };
@@ -62,7 +62,10 @@ function parseRow(cells: string[], line: number, prefix: string): StisFixture {
 		throw new StisParseError(`line ${line}: ${reason}`);
 	};
 	if (cells.length !== EXPECTED_HEADER.length) fail(`expected ${EXPECTED_HEADER.length} columns, got ${cells.length}`);
-	const [subject, startDate, startTime, endDate, endTime, , description, location] = cells.map((c) => c.trim());
+	const [subject, startDate, startTime, endDate, endTime, allDay, description, location] = cells.map((c) =>
+		c.trim().replace(/\s+/g, ' ')
+	);
+	if (allDay.toUpperCase() !== 'FALSE') fail('an all-day event is not a match');
 
 	const competition = /^Utkání\s+(\S+)$/.exec(subject)?.[1] ?? fail(`unexpected subject "${subject}"`);
 	const sides = splitSides(description, prefix) ?? fail(`"${description}" is not a match of a "${prefix} …" team`);
@@ -81,7 +84,7 @@ function parseRow(cells: string[], line: number, prefix: string): StisFixture {
 }
 
 /**
- * "Home - Away", where either team name may itself contain " - ". The club's own team is recognised
+ * Splits "Home - Away", where either team name may itself contain " - ". The club's own team is recognised
  * by its prefix at the start (home) or end (away) of the description.
  */
 function splitSides(description: string, prefix: string) {

@@ -38,13 +38,15 @@ npm run import:fixtures -- --club mladi-veterani --club-name "Mladí Veteráni" 
 
 - `--team-prefix` is the club's STIS team name without the letter; the letter (A–D) becomes the team.
 - `--club-name` is only needed the first time (it creates the club).
-- Running it again is safe: unchanged fixtures are skipped, moved ones updated. A file that can't be parsed stops the import before anything is written.
+- Running it again is safe: unchanged fixtures are skipped. Fixtures that changed in STIS (e.g. moved to another date) are listed but **not** applied, because a moved match should be rescheduled so members reconfirm. Add `--apply-changes` to update them anyway, which is fine as long as nobody has answered for those matches yet.
+- A file that can't be parsed stops the import before anything is written.
+- The command prints which database file it wrote to; check it's the one the app uses.
 
 On Fly.io, copy the CSVs up and run it in the machine:
 
 ```sh
 fly sftp shell        # put team-A.csv /data/team-A.csv  (and B, C, D)
-fly ssh console -C "sh -c 'cd /app && npx tsx scripts/import-fixtures.ts --club mladi-veterani --club-name \"Mladí Veteráni\" --team-prefix \"TJ Mladí Veteráni - VSK ČVUT\" /data/team-A.csv /data/team-B.csv /data/team-C.csv /data/team-D.csv'"
+fly ssh console -C "sh -c 'cd /app && DATABASE_PATH=/data/prague-pong.db ./node_modules/.bin/tsx scripts/import-fixtures.ts --club mladi-veterani --club-name \"Mladí Veteráni\" --team-prefix \"TJ Mladí Veteráni - VSK ČVUT\" /data/team-A.csv /data/team-B.csv /data/team-C.csv /data/team-D.csv'"
 ```
 
 ## Backups

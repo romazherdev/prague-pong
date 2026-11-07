@@ -40,7 +40,7 @@ describe('importSeasonFixtures', () => {
 			})
 		]);
 
-		expect(result).toEqual({ added: 2, updated: 0, unchanged: 0 });
+		expect(result).toEqual({ added: 2, updated: 0, unchanged: 0, changedNotApplied: [] });
 		const matches = core.listUpcomingMatches(club.id);
 		expect(matches.map((m) => [m.team.name, m.opponent, m.isHome, m.venue.name])).toEqual([
 			['A', 'TTC Praha F', true, 'Herna SC ČVUT Juliska'],
@@ -69,17 +69,38 @@ describe('importSeasonFixtures', () => {
 		core.importSeasonFixtures(club.id, season);
 		const again = core.importSeasonFixtures(club.id, season);
 
-		expect(again).toEqual({ added: 0, updated: 0, unchanged: 2 });
+		expect(again).toEqual({ added: 0, updated: 0, unchanged: 2, changedNotApplied: [] });
 		expect(core.listUpcomingMatches(club.id)).toHaveLength(2);
 	});
 
-	it('updates a fixture whose date changed in STIS instead of duplicating it', () => {
+	it('reports a fixture moved in STIS without applying it, so answers are never silently kept for a new date', () => {
 		const { core, club } = setup();
 		core.importSeasonFixtures(club.id, [fixture({})]);
 
-		const result = core.importSeasonFixtures(club.id, [fixture({ startsLocal: '2026-11-25T19:00', endsLocal: '2026-11-25T21:00' })]);
+		const result = core.importSeasonFixtures(club.id, [
+			fixture({ startsLocal: '2026-11-25T19:00', endsLocal: '2026-11-25T21:00' })
+		]);
 
-		expect(result).toEqual({ added: 0, updated: 1, unchanged: 0 });
+		expect(result).toEqual({
+			added: 0,
+			updated: 0,
+			unchanged: 0,
+			changedNotApplied: ['5TMB|TJ Mladí Veteráni - VSK ČVUT A|TTC Praha F']
+		});
+		expect(core.listUpcomingMatches(club.id).map((m) => m.startsAt)).toEqual(['2026-11-18T18:00:00Z']);
+	});
+
+	it('applies moved fixtures when asked to, instead of duplicating them', () => {
+		const { core, club } = setup();
+		core.importSeasonFixtures(club.id, [fixture({})]);
+
+		const result = core.importSeasonFixtures(
+			club.id,
+			[fixture({ startsLocal: '2026-11-25T19:00', endsLocal: '2026-11-25T21:00' })],
+			{ applyChanges: true }
+		);
+
+		expect(result).toMatchObject({ added: 0, updated: 1, changedNotApplied: [] });
 		expect(core.listUpcomingMatches(club.id).map((m) => m.startsAt)).toEqual(['2026-11-25T18:00:00Z']);
 	});
 

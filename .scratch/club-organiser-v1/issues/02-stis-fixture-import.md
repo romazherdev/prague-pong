@@ -17,3 +17,4 @@
 
 - 2026-11-07: Implemented. The STIS export is one CSV per team, in windows-1250, with no match id; fixtures are keyed by competition + home + away (ADR 0002). Tested on the 4 real exports for teams A–D (70 fixtures) checked in under `code/src/lib/server/stis/test-fixtures/`. Import command: `npm run import:fixtures` (see `code/DEPLOY.md`). Verified locally that all 70 matches show in the calendar; the deployed check waits for the first deploy.
 - Finding for ticket 09: 16 evenings this season have two home matches at Pod Juliskou (e.g. 11 Nov: B and D; 18 Nov: A and C).
+- 2026-11-07 (review): fixtures changed in STIS are now reported, not applied, unless `--apply-changes` (matches the spec's out-of-scope line on keeping the schedule in sync); team names whitespace-normalised in keys; all-day rows rejected; `tsx` moved to runtime dependencies so the import works inside the production image.

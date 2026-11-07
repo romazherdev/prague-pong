@@ -28,7 +28,16 @@ export type FixtureImport = {
 	endsLocal: string;
 };
 
-export type ImportResult = { added: number; updated: number; unchanged: number };
+export type ImportResult = {
+	added: number;
+	/** Existing fixtures whose details changed in the source and were updated (only with applyChanges). */
+	updated: number;
+	unchanged: number;
+	/** Keys of fixtures that changed in the source but were left as they are (the default). */
+	changedNotApplied: string[];
+};
+
+export const DEFAULT_TIME_ZONE = 'Europe/Prague';
 
 export type Club = { id: string; name: string; slug: string; timeZone: string };
 
@@ -37,11 +46,15 @@ export type ClubCore = ReturnType<typeof createClubCore>;
 export function createClubCore(deps: { db: Database.Database; clock: Clock; notifier: Notifier }) {
 	const { db, clock } = deps;
 
+	const clubTimeZone = (clubId: string) =>
+		(db.prepare('SELECT time_zone FROM clubs WHERE id = ?').get(clubId) as { time_zone: string } | undefined)
+			?.time_zone;
+
 	return {
 		resolveLocale,
 
 		createClub(input: { name: string; slug: string; timeZone?: string }): Club {
-			const club = { id: randomUUID(), name: input.name, slug: input.slug, timeZone: input.timeZone ?? 'Europe/Prague' };
+			const club = { id: randomUUID(), name: input.name, slug: input.slug, timeZone: input.timeZone ?? DEFAULT_TIME_ZONE };
 			db.prepare('INSERT INTO clubs (id, name, slug, time_zone) VALUES (?, ?, ?, ?)').run(
 				club.id,
 				club.name,
@@ -59,15 +72,19 @@ export function createClubCore(deps: { db: Database.Database; clock: Clock; noti
 		},
 
 		/**
-		 * Adds or updates the club's league fixtures. Matching is by fixture key, so importing the same
-		 * schedule again changes nothing, and a fixture moved in the source is updated, not duplicated.
+		 * Adds the club's league fixtures. Matching is by fixture key, so importing the same schedule again
+		 * changes nothing. A fixture whose date, venue or details changed in the source is reported in
+		 * `changedNotApplied` and left alone, because moving a match must go through a reschedule (members'
+		 * answers need reconfirming). `applyChanges: true` updates such fixtures in place instead.
 		 * All or nothing: if any fixture is invalid, nothing is imported.
 		 */
-		importSeasonFixtures(clubId: string, fixtures: FixtureImport[]): ImportResult {
-			const club = db.prepare('SELECT time_zone FROM clubs WHERE id = ?').get(clubId) as
-				| { time_zone: string }
-				| undefined;
-			if (!club) throw new Error(`Unknown club ${clubId}`);
+		importSeasonFixtures(
+			clubId: string,
+			fixtures: FixtureImport[],
+			opts: { applyChanges?: boolean } = {}
+		): ImportResult {
+			const timeZone = clubTimeZone(clubId);
+			if (!timeZone) throw new Error(`Unknown club ${clubId}`);
 
 			const findTeam = db.prepare('SELECT id FROM teams WHERE club_id = ? AND name = ?');
 			const insertTeam = db.prepare('INSERT INTO teams (id, club_id, name) VALUES (?, ?, ?)');
@@ -88,14 +105,14 @@ export function createClubCore(deps: { db: Database.Database; clock: Clock; noti
 			);
 
 			const idOf = (row: unknown) => (row as { id: string } | undefined)?.id;
-			const teamId = (name: string) => {
+			const ensureTeam = (name: string) => {
 				const existing = idOf(findTeam.get(clubId, name));
 				if (existing) return existing;
 				const id = randomUUID();
 				insertTeam.run(id, clubId, name);
 				return id;
 			};
-			const venueId = (venue: { name: string; address: string }) => {
+			const findOrCreateVenue = (venue: { name: string; address: string }) => {
 				const address = venue.address.trim().replace(/\s+/g, ' ');
 				const existing = idOf(findVenue.get(address));
 				if (existing) return existing;
@@ -105,17 +122,17 @@ export function createClubCore(deps: { db: Database.Database; clock: Clock; noti
 			};
 
 			return db.transaction(() => {
-				const result: ImportResult = { added: 0, updated: 0, unchanged: 0 };
+				const result: ImportResult = { added: 0, updated: 0, unchanged: 0, changedNotApplied: [] };
 				for (const f of fixtures) {
 					const row = {
 						clubId,
 						fixtureKey: f.fixtureKey,
-						teamId: teamId(f.teamName),
-						venueId: venueId(f.venue),
+						teamId: ensureTeam(f.teamName),
+						venueId: findOrCreateVenue(f.venue),
 						opponent: f.opponent,
 						isHome: f.isHome ? 1 : 0,
-						startsAt: wallClockToUtc(f.startsLocal, club.time_zone),
-						endsAt: wallClockToUtc(f.endsLocal, club.time_zone),
+						startsAt: wallClockToUtc(f.startsLocal, timeZone),
+						endsAt: wallClockToUtc(f.endsLocal, timeZone),
 						competition: f.competition
 					};
 					const existing = findMatch.get(clubId, f.fixtureKey) as
@@ -133,8 +150,12 @@ export function createClubCore(deps: { db: Database.Database; clock: Clock; noti
 						existing.ends_at !== row.endsAt ||
 						existing.competition !== row.competition
 					) {
-						updateMatch.run({ id: existing.id, ...row });
-						result.updated++;
+						if (opts.applyChanges) {
+							updateMatch.run({ id: existing.id, ...row });
+							result.updated++;
+						} else {
+							result.changedNotApplied.push(f.fixtureKey);
+						}
 					} else {
 						result.unchanged++;
 					}
@@ -145,11 +166,9 @@ export function createClubCore(deps: { db: Database.Database; clock: Clock; noti
 
 		/** Matches from today (in the club's time zone) onwards, soonest first. */
 		listUpcomingMatches(clubId: string): UpcomingMatch[] {
-			const club = db.prepare('SELECT time_zone FROM clubs WHERE id = ?').get(clubId) as
-				| { time_zone: string }
-				| undefined;
-			if (!club) return [];
-			const today = localDate(clock.now(), club.time_zone);
+			const timeZone = clubTimeZone(clubId);
+			if (!timeZone) return [];
+			const today = localDate(clock.now(), timeZone);
 
 			const rows = db
 				.prepare(
@@ -173,7 +192,7 @@ export function createClubCore(deps: { db: Database.Database; clock: Clock; noti
 			}[];
 
 			return rows
-				.filter((r) => localDate(new Date(r.starts_at), club.time_zone) >= today)
+				.filter((r) => localDate(new Date(r.starts_at), timeZone) >= today)
 				.map((r) => ({
 					id: r.id,
 					team: { id: r.team_id, name: r.team_name },
