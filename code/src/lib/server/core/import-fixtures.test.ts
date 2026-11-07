@@ -123,4 +123,21 @@ describe('importSeasonFixtures', () => {
 		).toThrow();
 		expect(core.listMatches(club.id)).toEqual([]);
 	});
+
+	it('a re-import that moves a match (with applyChanges) asks for reconfirmation, like a reschedule', () => {
+		const { core, club, seed } = setup();
+		core.importSeasonFixtures(club.id, [fixture({})]);
+		const [match] = core.listMatches(club.id);
+		const petr = seed.member({ clubId: club.id, name: 'Petr' });
+		core.recordResponse({ via: 'personal-link', memberId: petr.id }, club.id, match.id, 'yes');
+
+		core.importSeasonFixtures(club.id, [fixture({ startsLocal: '2026-11-25T19:00', endsLocal: '2026-11-25T21:00' })], {
+			applyChanges: true
+		});
+
+		expect(core.myResponse({ via: 'personal-link', memberId: petr.id }, club.id, match.id)).toEqual({
+			answer: 'yes',
+			needsReconfirm: true
+		});
+	});
 });

@@ -50,7 +50,7 @@
 	{/if}
 </dl>
 
-{#if data.lineup.length || data.canManageLineup}
+{#if data.lineup.length || data.canCaptain}
 	<section class="lineup">
 		<h2>{t('lineup.title')}</h2>
 		{#if data.lineup.length}
@@ -58,7 +58,7 @@
 		{:else}
 			<p class="hint">{t('lineup.empty')}</p>
 		{/if}
-		{#if data.canManageLineup}
+		{#if data.canCaptain}
 			<a class="button" href="/{data.club.slug}/matches/{match.id}/lineup">{t('lineup.edit')}</a>
 		{/if}
 	</section>
@@ -84,7 +84,9 @@
 			<dt class={key}>{t(`responses.${key}`, { count: String(list.length) })}</dt>
 			<dd>
 				{#each list as m, i (m.id)}{i > 0 ? ', ' : ''}{m.name}{#if m.fromOtherTeam && m.team}
-						<span class="sub">({m.team.name})</span>{/if}{:else}–{/each}
+						<span class="sub">({m.team.name})</span>{/if}{#if 'previousAnswer' in m}
+						<span class="sub">({t('reconfirm.before', { answer: t(`answer.${m.previousAnswer}` as MessageKey) })})</span
+						>{/if}{:else}–{/each}
 			</dd>
 		{/each}
 	</dl>
@@ -96,13 +98,13 @@
 	<a class="button" href={maps.googleMaps} target="_blank" rel="noopener noreferrer">Google Maps</a>
 </p>
 
-{#if data.canManageLineup && !match.isPast}
+{#if data.canCaptain && !match.isPast}
 	<details class="reschedule" open={!!(form && 'error' in form)}>
 		<summary>{t('reschedule.title')}</summary>
 		<form method="POST" action="?/reschedule" class="stack">
 			<label>
 				{t('reschedule.newTime')}
-				<input type="datetime-local" name="startsLocal" required value={data.startsLocal} />
+				<input type="datetime-local" name="startsLocal" required value={match.startsLocal} />
 			</label>
 			<p class="hint">{t('reschedule.hint')}</p>
 			{#if form && 'error' in form && form.error}<p class="error">{t(`error.${form.error}` as MessageKey)}</p>{/if}

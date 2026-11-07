@@ -1,6 +1,5 @@
 import { error } from '@sveltejs/kit';
 import { translator } from '#lib/i18n/messages.js';
-import { utcToWallClock } from '#lib/server/core/time.js';
 import { answerAction, answeringActor, clubRequest, guardedForm } from '#lib/server/request.js';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -14,14 +13,13 @@ export const load: PageServerLoad = (event) => {
 	const responses = who ? core.matchResponses(who, club.id, match.id) : null;
 	const myResponse = who ? core.myResponse(who, club.id, match.id) : null;
 	const lineup = who ? core.matchLineup(who, club.id, match.id) : [];
-	const canManageLineup = core.canManageLineup(req.actor, club.id, match.id);
+	const canCaptain = core.canCaptainMatch(req.actor, club.id, match.id);
 	return {
 		match,
-		startsLocal: utcToWallClock(match.startsAt, club.timeZone),
 		responses,
 		myResponse,
 		lineup,
-		canManageLineup,
+		canCaptain,
 		canAnswer: !!who && !match.isPast
 	};
 };

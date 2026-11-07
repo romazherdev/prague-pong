@@ -158,11 +158,11 @@ describe('line-up size and permission helpers', () => {
 		const { core, club, match, captainA, asAdmin, member, teamB } = setup();
 		const other = member('Other', teamB.id);
 
-		expect(core.canManageLineup(captainA.session, club.id, match.id)).toBe(true);
-		expect(core.canManageLineup(asAdmin, club.id, match.id)).toBe(true);
-		expect(core.canManageLineup(captainA.link, club.id, match.id)).toBe(false);
-		expect(core.canManageLineup(other.session, club.id, match.id)).toBe(false);
-		expect(core.canManageLineup(undefined, club.id, match.id)).toBe(false);
+		expect(core.canCaptainMatch(captainA.session, club.id, match.id)).toBe(true);
+		expect(core.canCaptainMatch(asAdmin, club.id, match.id)).toBe(true);
+		expect(core.canCaptainMatch(captainA.link, club.id, match.id)).toBe(false);
+		expect(core.canCaptainMatch(other.session, club.id, match.id)).toBe(false);
+		expect(core.canCaptainMatch(undefined, club.id, match.id)).toBe(false);
 	});
 });
 
@@ -192,7 +192,7 @@ describe('captainMatches', () => {
 		core.recordResponse(captainA.link, club.id, match.id, 'maybe');
 
 		expect(core.captainMatches(captainA.session, club.id).map((m) => [m.opponent, m.lineupSize, m.answers])).toEqual([
-			['Sokol', 2, { yes: 1, maybe: 1, no: 0 }]
+			['Sokol', 2, { yes: 1, maybe: 1, no: 0, reconfirm: 0 }]
 		]);
 		expect(core.captainMatches(asAdmin, club.id).map((m) => m.opponent)).toEqual(['Sokol', 'B match']);
 		expect(() => core.captainMatches(petr.session, club.id)).toThrow(ForbiddenError);

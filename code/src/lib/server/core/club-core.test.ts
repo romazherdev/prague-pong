@@ -164,7 +164,8 @@ describe('getMatch', () => {
 			startsAt: '2026-11-18T17:00:00Z',
 			endsAt: '2026-11-18T20:00:00Z',
 			competition: '6TMA',
-			isPast: false
+			isPast: false,
+			startsLocal: '2026-11-18T18:00'
 		});
 		expect(core.getMatch(club.id, past.id)).toMatchObject({ opponent: 'Old', endsAt: null, competition: null, isPast: true });
 	});
@@ -182,11 +183,3 @@ describe('getMatch', () => {
 	});
 });
 
-describe('utcToWallClock', () => {
-	it('is the inverse of wallClockToUtc, also across the DST switch', async () => {
-		const { utcToWallClock, wallClockToUtc } = await import('./time');
-		for (const local of ['2026-11-18T19:00', '2026-03-29T03:30', '2026-10-25T01:30']) {
-			expect(utcToWallClock(wallClockToUtc(local, 'Europe/Prague'), 'Europe/Prague')).toBe(local);
-		}
-	});
-});

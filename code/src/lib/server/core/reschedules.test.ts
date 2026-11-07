@@ -78,7 +78,7 @@ describe('rescheduleMatch', () => {
 		core.rescheduleMatch(captain.session, club.id, match.id, { startsLocal: '2026-11-19T19:30' });
 		expect(core.lineupView(captain.session, club.id, match.id).needsAttention).toBe(true);
 		expect(core.captainMatches(captain.session, club.id)[0].needsAttention).toBe(true);
-		expect(core.captainMatches(captain.session, club.id)[0].answers).toEqual({ yes: 0, maybe: 0, no: 0 });
+		expect(core.captainMatches(captain.session, club.id)[0].answers).toEqual({ yes: 0, maybe: 0, no: 0, reconfirm: 1 });
 
 		core.markLineupReviewed(captain.session, club.id, match.id);
 		expect(core.lineupView(captain.session, club.id, match.id).needsAttention).toBe(false);
@@ -129,5 +129,12 @@ describe('rescheduleMatch', () => {
 		expect(() => core.rescheduleMatch(asAdmin, club.id, match.id, { startsLocal: '2026-11-09T19:30' })).toThrow(InvalidInputError);
 		expect(() => core.rescheduleMatch(asAdmin, club.id, match.id, { startsLocal: 'tomorrow' })).toThrow(InvalidInputError);
 		expect(() => core.rescheduleMatch(asAdmin, club.id, match.id, { startsLocal: '2026-11-21T10:00' })).not.toThrow();
+	});
+
+	it("can't move a match that has already been played", () => {
+		const { core, club, asAdmin, seed, teamA, venue } = setup();
+		const old = seed.match({ clubId: club.id, teamId: teamA.id, venueId: venue.id, opponent: 'Old', isHome: true, startsAt: '2026-11-03T17:00:00Z' });
+
+		expect(() => core.rescheduleMatch(asAdmin, club.id, old.id, { startsLocal: '2026-11-21T10:00' })).toThrow(InvalidInputError);
 	});
 });

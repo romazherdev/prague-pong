@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import type { Clock } from './ports';
-import { localDate, wallClockToUtc } from './time';
+import { markMatchMoved } from './match-moves';
+import { localDate, utcToWallClock, wallClockToUtc } from './time';
 import { randomUUID } from 'node:crypto';
 
 /** A match as listed in the club calendar. */
@@ -21,6 +22,8 @@ export type MatchDetail = CalendarMatch & {
 	competition: string | null;
 	/** The match's day is over (club time zone): it can no longer be answered. */
 	isPast: boolean;
+	/** Start as wall-clock time in the club's time zone, "YYYY-MM-DDTHH:mm" (e.g. for editing it). */
+	startsLocal: string;
 };
 
 type MatchRow = {
@@ -201,6 +204,7 @@ export function calendarModule(deps: { db: Database.Database; clock: Clock }) {
 					) {
 						if (opts.applyChanges) {
 							updateMatch.run({ id: existing.id, ...row });
+							if (existing.starts_at !== row.startsAt) markMatchMoved(db, existing.id);
 							result.updated++;
 						} else {
 							result.changedNotApplied.push(f.fixtureKey);
@@ -244,7 +248,13 @@ export function calendarModule(deps: { db: Database.Database; clock: Clock }) {
 			if (!row) return undefined;
 			const timeZone = clubTimeZone(clubId) ?? DEFAULT_TIME_ZONE;
 			const isPast = localDate(new Date(row.starts_at), timeZone) < localDate(clock.now(), timeZone);
-			return { ...toCalendarMatch(row), endsAt: row.ends_at, competition: row.competition, isPast };
+			return {
+				...toCalendarMatch(row),
+				endsAt: row.ends_at,
+				competition: row.competition,
+				isPast,
+				startsLocal: utcToWallClock(row.starts_at, timeZone)
+			};
 		}
 	};
 }

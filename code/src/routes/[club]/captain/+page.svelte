@@ -24,6 +24,7 @@
 						<span class="yes">{t('responses.yes', { count: String(match.answers.yes) })}</span>
 						<span class="maybe">{t('responses.maybe', { count: String(match.answers.maybe) })}</span>
 						<span class="no">{t('responses.no', { count: String(match.answers.no) })}</span>
+						{#if match.answers.reconfirm}<span class="reconfirm">{t('responses.reconfirm', { count: String(match.answers.reconfirm) })}</span>{/if}
 					</span>
 					<span class="size" class:full={match.lineupSize === match.lineupMax}
 						>{t('captain.lineupSize', { count: String(match.lineupSize), max: String(match.lineupMax) })}</span>
@@ -64,6 +65,9 @@
 	}
 	.answers .maybe {
 		color: #a16207;
+	}
+	.answers .reconfirm {
+		color: #1d4ed8;
 	}
 	.answers .no {
 		color: #b91c1c;

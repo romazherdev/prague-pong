@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import type { MatchAnswer } from '#lib/answers.js';
+import { effectiveAnswer, type MatchAnswer } from '#lib/answers.js';
 import { accessRules, ForbiddenError, InvalidInputError, NotFoundError, type Actor } from './access';
 import type { CalendarMatch, calendarModule, MatchDetail, Team } from './calendar';
 
@@ -36,14 +36,14 @@ export type CaptainMatch = CalendarMatch & {
 	needsAttention: boolean;
 	lineupSize: number;
 	lineupMax: number;
-	/** How many active members answered each way. */
-	answers: Record<MatchAnswer, number>;
+	/** How many active members answered each way; `reconfirm` counts old answers to confirm again. */
+	answers: Record<MatchAnswer | 'reconfirm', number>;
 };
 
 /** Order for the captain: yes, maybe, to reconfirm, not answered, no. */
 const ANSWER_ORDER = { yes: 0, maybe: 1, reconfirm: 2, none: 3, no: 4 } as const;
 const answerRank = (c: Pick<LineupCandidate, 'answer' | 'needsReconfirm'>) =>
-	ANSWER_ORDER[c.needsReconfirm ? 'reconfirm' : (c.answer ?? 'none')];
+	ANSWER_ORDER[effectiveAnswer(c.answer, c.needsReconfirm) ?? 'none'];
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'cs');
 
 export function lineupsModule(deps: { db: Database.Database; calendar: ReturnType<typeof calendarModule> }) {
@@ -105,7 +105,7 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 			.map((p) => ({
 				memberId: p.id,
 				name: p.name,
-				answer: p.needsReconfirm ? 'reconfirm' : (p.answer as LineupWarning['answer'])
+				answer: effectiveAnswer(p.answer, p.needsReconfirm) as LineupWarning['answer']
 			}));
 
 	return {
@@ -155,16 +155,17 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 						.all(clubId) as { match_id: string; n: number }[]
 				).map((r) => [r.match_id, r.n])
 			);
-			const answers = new Map<string, Record<MatchAnswer, number>>();
+			const empty = () => ({ yes: 0, maybe: 0, no: 0, reconfirm: 0 });
+			const answers = new Map<string, Record<MatchAnswer | 'reconfirm', number>>();
 			for (const r of db
 				.prepare(
-					`SELECT r.match_id, r.answer, count(*) AS n FROM match_responses r
+					`SELECT r.match_id, r.answer, r.needs_reconfirm, count(*) AS n FROM match_responses r
 					 JOIN members p ON p.id = r.member_id JOIN matches m ON m.id = r.match_id
-					 WHERE m.club_id = ? AND p.active = 1 AND r.needs_reconfirm = 0 GROUP BY r.match_id, r.answer`
+					 WHERE m.club_id = ? AND p.active = 1 GROUP BY r.match_id, r.answer, r.needs_reconfirm`
 				)
-				.all(clubId) as { match_id: string; answer: MatchAnswer; n: number }[]) {
-				const counts = answers.get(r.match_id) ?? { yes: 0, maybe: 0, no: 0 };
-				counts[r.answer] = r.n;
+				.all(clubId) as { match_id: string; answer: MatchAnswer; needs_reconfirm: number; n: number }[]) {
+				const counts = answers.get(r.match_id) ?? empty();
+				counts[effectiveAnswer(r.answer, r.needs_reconfirm === 1)!] += r.n;
 				answers.set(r.match_id, counts);
 			}
 			return calendar
@@ -175,7 +176,7 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 					lineupSize: sizes.get(m.id) ?? 0,
 					needsAttention: lineupNeedsAttention(m.id),
 					lineupMax: LINEUP_SIZE,
-					answers: answers.get(m.id) ?? { yes: 0, maybe: 0, no: 0 }
+					answers: answers.get(m.id) ?? empty()
 				}));
 		},
 
@@ -185,8 +186,11 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 			db.prepare('UPDATE matches SET lineup_needs_attention = 0 WHERE id = ?').run(matchId);
 		},
 
-		/** Whether the actor may change the match's line-up (its team's captain or an admin, signed in). */
-		canManageLineup(actor: Actor | undefined, clubId: string, matchId: string): boolean {
+		/**
+		 * Whether the actor may act as captain for the match (its team's captain or an admin, signed in):
+		 * change its line-up, move it.
+		 */
+		canCaptainMatch(actor: Actor | undefined, clubId: string, matchId: string): boolean {
 			const match = calendar.getMatch(clubId, matchId);
 			return !!match && rules.canCaptain(actor, clubId, match.team.id);
 		},

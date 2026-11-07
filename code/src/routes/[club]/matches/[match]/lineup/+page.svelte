@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { effectiveAnswer, type MatchAnswer } from '#lib/answers.js';
 	import ClashNotes from '#lib/components/ClashNotes.svelte';
 	import { formatMatchTime, translator, type MessageKey } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
@@ -21,8 +22,7 @@
 
 	const own = $derived(data.candidates.filter((c) => !c.fromOtherTeam));
 	const others = $derived(data.candidates.filter((c) => c.fromOtherTeam));
-	const answerLabel = (c: { answer: string | null; needsReconfirm: boolean }) =>
-		t(`lineup.answer.${c.needsReconfirm ? 'reconfirm' : (c.answer ?? 'none')}` as MessageKey);
+	const answerKey = (c: { answer: MatchAnswer | null; needsReconfirm: boolean }) => effectiveAnswer(c.answer, c.needsReconfirm) ?? 'none';
 </script>
 
 <p><a href="/{data.club.slug}/matches/{data.match.id}">{t('match.backToMatch')}</a></p>
@@ -72,7 +72,7 @@
 							onchange={(e) => toggle(c.id, e.currentTarget.checked)}
 						/>
 						<span class="name">{c.name}{#if c.fromOtherTeam && c.team} <span class="team">({c.team.name})</span>{/if}</span>
-						<span class="answer {c.needsReconfirm ? 'reconfirm' : (c.answer ?? 'none')}">{answerLabel(c)}</span>
+						<span class="answer {answerKey(c)}">{t(`lineup.answer.${answerKey(c)}` as MessageKey)}</span>
 					</label>
 				</li>
 			{/each}
