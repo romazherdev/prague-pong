@@ -12,6 +12,6 @@ export const load: PageServerLoad = (event) => {
 		teams,
 		selectedTeam: team?.name ?? null,
 		includePast,
-		matches: core.listMatches(club.id, { teamId: team?.id, includePast })
+		...core.clubCalendar(club.id, { teamId: team?.id, includePast })
 	};
 };

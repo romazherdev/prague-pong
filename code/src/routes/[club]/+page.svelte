@@ -1,10 +1,12 @@
 <script lang="ts">
+	import ClashNotes from '#lib/components/ClashNotes.svelte';
 	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
 	import { formatMatchTime, translator } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const t = $derived(translator(data.locale));
+	const clashesOf = (matchId: string) => data.clashes.filter((c) => c.matchIds.includes(matchId));
 
 	/** Calendar URL keeping the current filters, with some of them changed. */
 	function calendarHref(change: { team?: string | null; past?: boolean }): string {
@@ -48,8 +50,9 @@
 {:else}
 	<ul class="matches">
 		{#each data.matches as match (match.id)}
+			{@const clashes = clashesOf(match.id)}
 			<li>
-				<a class="match" href="/{data.club.slug}/matches/{match.id}">
+				<a class="match" class:clash={clashes.length > 0} href="/{data.club.slug}/matches/{match.id}">
 					<time datetime={match.startsAt}>{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</time>
 					<div class="teams">
 						<span class="team">{t('match.team', { team: match.team.name })}</span>
@@ -59,6 +62,7 @@
 						<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
 						{match.venue.name}
 					</div>
+					<ClashNotes {clashes} locale={data.locale} />
 				</a>
 			</li>
 		{/each}
@@ -113,6 +117,9 @@
 		padding: 0.75rem 1rem;
 		color: inherit;
 		text-decoration: none;
+	}
+	.match.clash {
+		border: 2px solid #dc2626;
 	}
 	.match:hover,
 	.match:focus-visible {

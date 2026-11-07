@@ -23,7 +23,8 @@ export type InvalidInputCode =
 	| 'cannotDeactivateSelf'
 	| 'matchPast'
 	| 'lineupTooBig'
-	| 'lineupDuplicate';
+	| 'lineupDuplicate'
+	| 'settingsInvalid';
 
 /** The input breaks a rule; `code` says which, so routes can show a translated message. */
 export class InvalidInputError extends Error {

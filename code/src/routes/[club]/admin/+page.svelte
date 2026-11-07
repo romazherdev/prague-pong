@@ -10,6 +10,7 @@
 <ul class="admin-links">
 	<li><a href="/{data.club.slug}/admin/members">{t('nav.members')}</a></li>
 	<li><a href="/{data.club.slug}/admin/rosters">{t('rosters.title')}</a></li>
+	<li><a href="/{data.club.slug}/admin/settings">{t('settings.title')}</a></li>
 </ul>
 
 <h2>{t('admin.captains')}</h2>

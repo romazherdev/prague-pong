@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import ClashNotes from '#lib/components/ClashNotes.svelte';
 	import { formatMatchTime, translator, type MessageKey } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
@@ -29,6 +30,8 @@
 	<strong>{t('match.team', { team: data.match.team.name })}</strong>
 	{t('match.versus', { opponent: data.match.opponent })} · {formatMatchTime(data.match.startsAt, data.locale, data.club.timeZone)}
 </p>
+
+<ClashNotes clashes={data.clashes} locale={data.locale} />
 
 {#if data.warnings.length}
 	<div class="warning" role="status">

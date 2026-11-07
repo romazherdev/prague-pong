@@ -109,6 +109,13 @@ export function calendarModule(deps: { db: Database.Database; clock: Clock }) {
 			return club;
 		},
 
+		findClubById(id: string): Club | undefined {
+			const row = db.prepare('SELECT id, name, slug, time_zone FROM clubs WHERE id = ?').get(id) as
+				| { id: string; name: string; slug: string; time_zone: string }
+				| undefined;
+			return row && { id: row.id, name: row.name, slug: row.slug, timeZone: row.time_zone };
+		},
+
 		findClubBySlug(slug: string): Club | undefined {
 			const row = db.prepare('SELECT id, name, slug, time_zone FROM clubs WHERE slug = ?').get(slug) as
 				| { id: string; name: string; slug: string; time_zone: string }

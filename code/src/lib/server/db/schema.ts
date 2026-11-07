@@ -107,6 +107,15 @@ const migrations: string[] = [
 		member_id TEXT NOT NULL REFERENCES members(id),
 		PRIMARY KEY (match_id, member_id)
 	);
+	`,
+	// Club settings for clash checks (ticket 09). No row means the defaults in core/settings.ts.
+	`
+	CREATE TABLE club_settings (
+		club_id TEXT PRIMARY KEY REFERENCES clubs(id),
+		total_tables INTEGER NOT NULL,
+		tables_per_home_match INTEGER NOT NULL,
+		min_training_tables INTEGER NOT NULL
+	);
 	`
 ];
 

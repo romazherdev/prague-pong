@@ -174,6 +174,20 @@ export function lineupsModule(deps: { db: Database.Database; calendar: ReturnTyp
 			return lineupOf(clubId, match).map((c) => ({ id: c.id, name: c.name, fromOtherTeam: c.fromOtherTeam }));
 		},
 
+		/** Active line-up members of each of the club's matches (for clash checks). */
+		activeLineupsByMatch(clubId: string): Map<string, { id: string; name: string }[]> {
+			const rows = db
+				.prepare(
+					`SELECT l.match_id, p.id, p.name FROM lineup_players l
+					 JOIN matches m ON m.id = l.match_id JOIN members p ON p.id = l.member_id
+					 WHERE m.club_id = ? AND p.active = 1`
+				)
+				.all(clubId) as { match_id: string; id: string; name: string }[];
+			const byMatch = new Map<string, { id: string; name: string }[]>();
+			for (const r of rows) byMatch.set(r.match_id, [...(byMatch.get(r.match_id) ?? []), { id: r.id, name: r.name }]);
+			return byMatch;
+		},
+
 		/** Ids of the matches the member is in the line-up for. */
 		lineupMatchIdsOf(memberId: string): Set<string> {
 			const rows = db.prepare('SELECT match_id FROM lineup_players WHERE member_id = ?').all(memberId) as { match_id: string }[];

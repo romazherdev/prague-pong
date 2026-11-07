@@ -4,7 +4,7 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Club settings (admin-editable): total tables (default 8), tables per home match (default 3), minimum tables for viable training (stored now, used in 15)
 - [ ] The calendar query returns clash flags per evening; the UI only renders them
