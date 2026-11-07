@@ -1,4 +1,6 @@
-import type { CalendarMatch, calendarModule, MatchFilter } from './calendar';
+import type Database from 'better-sqlite3';
+import { accessRules, type Actor } from './access';
+import { DEFAULT_TIME_ZONE, type CalendarMatch, type calendarModule, type MatchFilter } from './calendar';
 import type { lineupsModule } from './lineups';
 import type { settingsModule } from './settings';
 import { localDate } from './time';
@@ -15,15 +17,20 @@ export type EveningClash =
 	  }
 	| { kind: 'doubleBooked'; date: string; matchIds: string[]; member: { id: string; name: string } };
 
-export type ClubCalendar = { matches: CalendarMatch[]; clashes: EveningClash[] };
+/** A calendar match with its evening: the club's local date, which clashes are grouped by. */
+export type EveningMatch = CalendarMatch & { evening: string };
+
+export type ClubCalendar = { matches: EveningMatch[]; clashes: EveningClash[] };
 
 /** Evening-by-evening checks across all of the club's teams. */
 export function clashesModule(deps: {
+	db: Database.Database;
 	calendar: ReturnType<typeof calendarModule>;
 	lineups: ReturnType<typeof lineupsModule>;
 	settings: ReturnType<typeof settingsModule>;
 }) {
 	const { calendar, lineups, settings } = deps;
+	const rules = accessRules(deps.db);
 
 	function clashesAmong(clubId: string, matches: CalendarMatch[]): EveningClash[] {
 		const timeZone = calendar.findClubById(clubId)?.timeZone;
@@ -63,13 +70,22 @@ export function clashesModule(deps: {
 	return {
 		/**
 		 * The club calendar with clash flags per evening. Clashes are checked across all teams, even when the
-		 * calendar is narrowed to one team, and for the same evenings the calendar shows.
+		 * calendar is narrowed to one team, and for the same evenings the calendar shows. Double bookings are
+		 * only included when `viewer` is a member of the club.
 		 */
-		clubCalendar(clubId: string, filter: MatchFilter = {}): ClubCalendar {
+		clubCalendar(clubId: string, filter: MatchFilter = {}, viewer?: Actor): ClubCalendar {
 			const all = calendar.listMatches(clubId, { includePast: filter.includePast });
-			const matches = filter.teamId ? all.filter((m) => m.team.id === filter.teamId) : all;
+			const timeZone = calendar.findClubById(clubId)?.timeZone ?? DEFAULT_TIME_ZONE;
+			const matches = (filter.teamId ? all.filter((m) => m.team.id === filter.teamId) : all).map((m) => ({
+				...m,
+				evening: localDate(new Date(m.startsAt), timeZone)
+			}));
 			const shown = new Set(matches.map((m) => m.id));
-			const clashes = clashesAmong(clubId, all).filter((c) => c.matchIds.some((id) => shown.has(id)));
+			// A double booking names a member, so only members see it; the calendar itself is public.
+			const isMember = !!viewer && rules.isActiveMemberOf(viewer.memberId, clubId);
+			const clashes = clashesAmong(clubId, all).filter(
+				(c) => c.matchIds.some((id) => shown.has(id)) && (isMember || c.kind !== 'doubleBooked')
+			);
 			return { matches, clashes };
 		},
 

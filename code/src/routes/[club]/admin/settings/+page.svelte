@@ -23,6 +23,6 @@
 		<input name="minTrainingTables" type="number" inputmode="numeric" min="0" max="100" required value={data.settings.minTrainingTables} />
 	</label>
 	{#if form && 'error' in form && form.error}<p class="error">{t(`error.${form.error}` as MessageKey)}</p>{/if}
-	{#if form && 'saved' in form}<p class="ok">✓ {t('members.saved')}</p>{/if}
+	{#if form && 'settingsSaved' in form}<p class="ok">✓ {t('settings.saved')}</p>{/if}
 	<button type="submit" class="primary">{t('admin.save')}</button>
 </form>

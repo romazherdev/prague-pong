@@ -6,7 +6,14 @@
 
 	let { data }: PageProps = $props();
 	const t = $derived(translator(data.locale));
-	const clashesOf = (matchId: string) => data.clashes.filter((c) => c.matchIds.includes(matchId));
+	/** The calendar as evenings, each with its matches and its clashes. */
+	const evenings = $derived(
+		[...Map.groupBy(data.matches, (m) => m.evening)].map(([date, matches]) => ({
+			date,
+			matches,
+			clashes: data.clashes.filter((c) => c.date === date)
+		}))
+	);
 
 	/** Calendar URL keeping the current filters, with some of them changed. */
 	function calendarHref(change: { team?: string | null; past?: boolean }): string {
@@ -48,25 +55,30 @@
 {#if data.matches.length === 0}
 	<p>{data.includePast ? t('calendar.emptyAll') : t('calendar.empty')}</p>
 {:else}
-	<ul class="matches">
-		{#each data.matches as match (match.id)}
-			{@const clashes = clashesOf(match.id)}
-			<li>
-				<a class="match" class:clash={clashes.length > 0} href="/{data.club.slug}/matches/{match.id}">
-					<time datetime={match.startsAt}>{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</time>
-					<div class="teams">
-						<span class="team">{t('match.team', { team: match.team.name })}</span>
-						<span>{t('match.versus', { opponent: match.opponent })}</span>
-					</div>
-					<div class="where">
-						<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
-						{match.venue.name}
-					</div>
-					<ClashNotes {clashes} locale={data.locale} />
-				</a>
-			</li>
+	<div class="evenings">
+		{#each evenings as evening (evening.date)}
+			<section class="evening" class:clash={evening.clashes.length > 0}>
+				<ClashNotes clashes={evening.clashes} locale={data.locale} />
+				<ul class="matches">
+					{#each evening.matches as match (match.id)}
+						<li>
+							<a class="match" href="/{data.club.slug}/matches/{match.id}">
+								<time datetime={match.startsAt}>{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</time>
+								<div class="teams">
+									<span class="team">{t('match.team', { team: match.team.name })}</span>
+									<span>{t('match.versus', { opponent: match.opponent })}</span>
+								</div>
+								<div class="where">
+									<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
+									{match.venue.name}
+								</div>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</section>
 		{/each}
-	</ul>
+	</div>
 {/if}
 
 <style>
@@ -118,8 +130,19 @@
 		color: inherit;
 		text-decoration: none;
 	}
-	.match.clash {
+	.evenings {
+		display: grid;
+		gap: 0.75rem;
+	}
+	.evening.clash {
+		display: grid;
+		gap: 0.5rem;
 		border: 2px solid #dc2626;
+		border-radius: 0.75rem;
+		padding: 0.5rem;
+	}
+	.evening .matches {
+		margin: 0;
 	}
 	.match:hover,
 	.match:focus-visible {

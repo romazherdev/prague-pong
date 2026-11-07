@@ -37,10 +37,18 @@ export function settingsModule(deps: { db: Database.Database }) {
 			return clubSettings(clubId);
 		},
 
-		/** Admins only. Whole numbers: at least 1 table and 1 per match; the training minimum can be 0. */
+		/**
+		 * Admins only. Whole numbers up to 100: at least 1 table, 1 to all of them per match, and a training
+		 * minimum from 0.
+		 */
 		updateClubSettings(actor: Actor | undefined, clubId: string, settings: ClubSettings): void {
 			rules.requireAdmin(actor, clubId);
-			if (!isCount(settings.totalTables, 1) || !isCount(settings.tablesPerHomeMatch, 1) || !isCount(settings.minTrainingTables, 0)) {
+			if (
+				!isCount(settings.totalTables, 1) ||
+				!isCount(settings.tablesPerHomeMatch, 1) ||
+				!isCount(settings.minTrainingTables, 0) ||
+				settings.tablesPerHomeMatch > settings.totalTables
+			) {
 				throw new InvalidInputError('settingsInvalid');
 			}
 			db.prepare(

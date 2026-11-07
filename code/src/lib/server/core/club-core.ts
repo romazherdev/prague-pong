@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { accessModule } from './access';
+import { accessModule, type Actor } from './access';
 import { clashesModule } from './clashes';
 import { calendarModule } from './calendar';
 import { resolveLocale } from './locale';
@@ -26,7 +26,7 @@ export function createClubCore(deps: CoreDeps) {
 	const responses = responsesModule({ ...deps, calendar });
 	const lineups = lineupsModule({ ...deps, calendar });
 	const settings = settingsModule(deps);
-	const clashes = clashesModule({ calendar, lineups, settings });
+	const clashes = clashesModule({ ...deps, calendar, lineups, settings });
 	return {
 		resolveLocale,
 		...calendar,
@@ -38,9 +38,9 @@ export function createClubCore(deps: CoreDeps) {
 		...settings,
 		...clashes,
 		/** The captain's line-up view, with the clashes on that match's evening. */
-		lineupView: (...args: Parameters<typeof lineups.lineupView>) => ({
-			...lineups.lineupView(...args),
-			clashes: clashes.clashesForMatch(args[1], args[2])
+		lineupView: (actor: Actor | undefined, clubId: string, matchId: string) => ({
+			...lineups.lineupView(actor, clubId, matchId),
+			clashes: clashes.clashesForMatch(clubId, matchId)
 		}),
 		...myEventsModule({ ...deps, calendar, responses, lineups })
 	};

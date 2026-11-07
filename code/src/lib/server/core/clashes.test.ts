@@ -31,6 +31,8 @@ describe('club settings', () => {
 
 		expect(() => core.updateClubSettings(asAdmin, club.id, { totalTables: 0, tablesPerHomeMatch: 3, minTrainingTables: 1 })).toThrow(InvalidInputError);
 		expect(() => core.updateClubSettings(asAdmin, club.id, { totalTables: 8, tablesPerHomeMatch: 2.5, minTrainingTables: 1 })).toThrow(InvalidInputError);
+		expect(() => core.updateClubSettings(asAdmin, club.id, { totalTables: 2, tablesPerHomeMatch: 3, minTrainingTables: 0 })).toThrow(InvalidInputError);
+		expect(() => core.updateClubSettings(asAdmin, club.id, { totalTables: 8, tablesPerHomeMatch: 3, minTrainingTables: NaN })).toThrow(InvalidInputError);
 		expect(() => core.clubSettingsForAdmin({ via: 'personal-link', memberId: admin.id }, club.id)).toThrow(ForbiddenError);
 		expect(() =>
 			core.updateClubSettings({ via: 'personal-link', memberId: admin.id }, club.id, { totalTables: 8, tablesPerHomeMatch: 3, minTrainingTables: 2 })
@@ -76,9 +78,21 @@ describe('clash: a member in two line-ups on the same evening', () => {
 		core.setLineup(asAdmin, club.id, c.id, [petr.id]);
 		core.setLineup(asAdmin, club.id, later.id, [petr.id]);
 
-		expect(core.clubCalendar(club.id).clashes).toEqual([
+		expect(core.clubCalendar(club.id, {}, asAdmin).clashes).toEqual([
 			{ kind: 'doubleBooked', date: '2026-11-11', matchIds: [a.id, c.id], member: { id: petr.id, name: 'Petr' } }
 		]);
+	});
+
+	it("isn't shown to visitors who aren't members, since it names a member", () => {
+		const { core, club, match, asAdmin, seed } = setup();
+		const petr = seed.member({ clubId: club.id, name: 'Petr' });
+		const a = match('A', true, '2026-11-11T17:00:00Z');
+		const c = match('C', false, '2026-11-11T19:00:00Z');
+		core.setLineup(asAdmin, club.id, a.id, [petr.id]);
+		core.setLineup(asAdmin, club.id, c.id, [petr.id]);
+
+		expect(core.clubCalendar(club.id).clashes).toEqual([]);
+		expect(core.clubCalendar(club.id, {}, { via: 'personal-link', memberId: petr.id }).clashes).toHaveLength(1);
 	});
 
 	it('ignores members who left the club', () => {
@@ -91,7 +105,7 @@ describe('clash: a member in two line-ups on the same evening', () => {
 
 		core.deactivateMember(asAdmin, club.id, petr.id);
 
-		expect(core.clubCalendar(club.id).clashes).toEqual([]);
+		expect(core.clubCalendar(club.id, {}, asAdmin).clashes).toEqual([]);
 	});
 });
 
@@ -116,6 +130,16 @@ describe('clubCalendar', () => {
 
 		expect(core.clubCalendar(club.id).clashes).toEqual([]);
 		expect(core.clubCalendar(club.id, { includePast: true }).clashes).toHaveLength(1);
+	});
+});
+
+describe('clubCalendar evenings', () => {
+	it("gives each match its evening (the club's local date), so the calendar can group and flag whole evenings", () => {
+		const { core, club, match } = setup();
+		match('B', true, '2026-11-11T18:00:00Z');
+		match('D', false, '2026-11-11T23:30:00Z'); // 00:30 on the 12th in Prague
+
+		expect(core.clubCalendar(club.id).matches.map((m) => m.evening)).toEqual(['2026-11-11', '2026-11-12']);
 	});
 });
 

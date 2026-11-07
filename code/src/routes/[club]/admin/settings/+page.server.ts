@@ -10,14 +10,15 @@ export const actions: Actions = {
 	default: async (event) => {
 		const req = clubRequest(event);
 		const form = await event.request.formData();
-		const num = (name: string) => Number(form.get(name));
+		// A missing or empty field is NaN, which the core refuses (not 0).
+		const num = (name: string) => (form.get(name) ? Number(form.get(name)) : NaN);
 		return guardedForm(req, () => {
 			req.core.updateClubSettings(req.actor, req.club.id, {
 				totalTables: num('totalTables'),
 				tablesPerHomeMatch: num('tablesPerHomeMatch'),
 				minTrainingTables: num('minTrainingTables')
 			});
-			return { saved: true };
+			return { settingsSaved: true };
 		});
 	}
 };

@@ -96,6 +96,13 @@ export function calendarModule(deps: { db: Database.Database; clock: Clock }) {
 		(db.prepare('SELECT time_zone FROM clubs WHERE id = ?').get(clubId) as { time_zone: string } | undefined)
 			?.time_zone;
 
+	function findClub(by: 'id' | 'slug', value: string): Club | undefined {
+		const row = db.prepare(`SELECT id, name, slug, time_zone FROM clubs WHERE ${by} = ?`).get(value) as
+			| { id: string; name: string; slug: string; time_zone: string }
+			| undefined;
+		return row && { id: row.id, name: row.name, slug: row.slug, timeZone: row.time_zone };
+	}
+
 	return {
 
 		createClub(input: { name: string; slug: string; timeZone?: string }): Club {
@@ -109,19 +116,9 @@ export function calendarModule(deps: { db: Database.Database; clock: Clock }) {
 			return club;
 		},
 
-		findClubById(id: string): Club | undefined {
-			const row = db.prepare('SELECT id, name, slug, time_zone FROM clubs WHERE id = ?').get(id) as
-				| { id: string; name: string; slug: string; time_zone: string }
-				| undefined;
-			return row && { id: row.id, name: row.name, slug: row.slug, timeZone: row.time_zone };
-		},
+		findClubById: (id: string) => findClub('id', id),
 
-		findClubBySlug(slug: string): Club | undefined {
-			const row = db.prepare('SELECT id, name, slug, time_zone FROM clubs WHERE slug = ?').get(slug) as
-				| { id: string; name: string; slug: string; time_zone: string }
-				| undefined;
-			return row && { id: row.id, name: row.name, slug: row.slug, timeZone: row.time_zone };
-		},
+		findClubBySlug: (slug: string) => findClub('slug', slug),
 
 		/**
 		 * Adds the club's league fixtures. Matching is by fixture key, so importing the same schedule again
