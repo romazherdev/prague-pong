@@ -12,6 +12,8 @@ test('a captain signs in, sets a line-up, and the member sees they are playing',
 	await captain.goto(`/${clubSlug}/captain`);
 	await captain.getByRole('link', { name: /TTC Praha F/ }).click();
 	await expect(captain.getByRole('heading', { name: 'Sestava' })).toBeVisible();
+	// Tick only once the page is interactive: the picker keeps its own state, set up when it hydrates.
+	await captain.waitForLoadState('networkidle');
 	await captain.getByLabel(/Petr Novák/).check();
 	await captain.getByRole('button', { name: 'Uložit sestavu' }).click();
 	await expect(captain.getByText('Petr Novák zatím neodpověděl(a).')).toBeVisible();
