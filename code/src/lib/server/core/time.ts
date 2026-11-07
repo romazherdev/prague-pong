@@ -38,3 +38,21 @@ export function wallClockToUtc(local: string, timeZone: string): string {
 	utc = asUtc - offsetAt(utc, timeZone); // second pass settles instants near a DST switch
 	return new Date(utc).toISOString().replace('.000Z', 'Z');
 }
+
+/** "2026-11-18T18:00:00Z" → "2026-11-18T19:00" in `timeZone` (for a datetime-local input). */
+export function utcToWallClock(iso: string, timeZone: string): string {
+	const parts = Object.fromEntries(
+		new Intl.DateTimeFormat('en-CA', {
+			timeZone,
+			hourCycle: 'h23',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit'
+		})
+			.formatToParts(new Date(iso))
+			.map((p) => [p.type, p.value])
+	);
+	return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}

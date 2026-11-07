@@ -7,7 +7,14 @@ export const load: PageServerLoad = (event) => {
 };
 
 export const actions: Actions = {
-	default: async (event) => {
+	reviewed: (event) => {
+		const req = clubRequest(event);
+		return guardedForm(req, () => {
+			req.core.markLineupReviewed(req.actor, req.club.id, event.params.match);
+			return { reviewed: true };
+		});
+	},
+	save: async (event) => {
 		const req = clubRequest(event);
 		const memberIds = (await event.request.formData()).getAll('memberId').map(String);
 		return guardedForm(req, () => ({ saved: true, ...req.core.setLineup(req.actor, req.club.id, event.params.match, memberIds) }));

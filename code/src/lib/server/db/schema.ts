@@ -116,6 +116,11 @@ const migrations: string[] = [
 		tables_per_home_match INTEGER NOT NULL,
 		min_training_tables INTEGER NOT NULL
 	);
+	`,
+	// Reschedules (ticket 10): a moved match asks yes/maybe answers to be confirmed again, and flags its line-up.
+	`
+	ALTER TABLE match_responses ADD COLUMN needs_reconfirm INTEGER NOT NULL DEFAULT 0;
+	ALTER TABLE matches ADD COLUMN lineup_needs_attention INTEGER NOT NULL DEFAULT 0;
 	`
 ];
 

@@ -2,10 +2,10 @@
 	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
 	import AnswerButtons from '#lib/components/AnswerButtons.svelte';
 	import { mapLinks } from '#lib/maps.js';
-	import { formatClockTime, formatMatchDay, translator } from '#lib/i18n/messages.js';
+	import { formatClockTime, formatMatchDay, translator, type MessageKey } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 	const t = $derived(translator(data.locale));
 	const match = $derived(data.match);
 	const tz = $derived(data.club.timeZone);
@@ -66,14 +66,21 @@
 
 {#if data.canAnswer}
 	<h2>{t('answer.question')}</h2>
-	<AnswerButtons matchId={match.id} current={data.myAnswer} locale={data.locale} />
+	{#if data.myResponse?.needsReconfirm}
+		<p class="notice">{t('reconfirm.notice', { answer: t(`answer.${data.myResponse.answer}` as MessageKey) })}</p>
+	{/if}
+	<AnswerButtons
+		matchId={match.id}
+		current={data.myResponse && !data.myResponse.needsReconfirm ? data.myResponse.answer : null}
+		locale={data.locale}
+	/>
 {/if}
 
 {#if data.responses}
 	{@const r = data.responses}
 	<h2>{t('responses.title')}</h2>
 	<dl class="responses">
-		{#each [['yes', r.yes], ['maybe', r.maybe], ['no', r.no], ['unanswered', r.unanswered]] as const as [key, list] (key)}
+		{#each [['yes', r.yes], ['maybe', r.maybe], ['reconfirm', r.reconfirm], ['no', r.no], ['unanswered', r.unanswered]] as const as [key, list] (key)}
 			<dt class={key}>{t(`responses.${key}`, { count: String(list.length) })}</dt>
 			<dd>
 				{#each list as m, i (m.id)}{i > 0 ? ', ' : ''}{m.name}{#if m.fromOtherTeam && m.team}
@@ -89,7 +96,38 @@
 	<a class="button" href={maps.googleMaps} target="_blank" rel="noopener noreferrer">Google Maps</a>
 </p>
 
+{#if data.canManageLineup && !match.isPast}
+	<details class="reschedule" open={!!(form && 'error' in form)}>
+		<summary>{t('reschedule.title')}</summary>
+		<form method="POST" action="?/reschedule" class="stack">
+			<label>
+				{t('reschedule.newTime')}
+				<input type="datetime-local" name="startsLocal" required value={data.startsLocal} />
+			</label>
+			<p class="hint">{t('reschedule.hint')}</p>
+			{#if form && 'error' in form && form.error}<p class="error">{t(`error.${form.error}` as MessageKey)}</p>{/if}
+			<button type="submit" class="primary">{t('reschedule.save')}</button>
+		</form>
+	</details>
+{/if}
+{#if form && 'rescheduled' in form}<p class="ok">✓ {t('reschedule.done')}</p>{/if}
+
 <style>
+	.reschedule {
+		margin-top: 2rem;
+		border-top: 1px solid #e5e5e0;
+		padding-top: 1rem;
+	}
+	.reschedule summary {
+		min-height: 44px;
+		display: flex;
+		align-items: center;
+		cursor: pointer;
+		font-weight: 600;
+	}
+	.responses .reconfirm {
+		color: #1d4ed8;
+	}
 	h1 {
 		margin-bottom: 0.25rem;
 	}

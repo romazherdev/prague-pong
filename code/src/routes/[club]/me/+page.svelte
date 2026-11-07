@@ -14,6 +14,9 @@
 {:else}
 	{@const events = data.events}
 	<h1>{t('me.hello', { name: firstName(events.name) })}</h1>
+	{#if events.toReconfirm > 0}
+		<p class="notice">{t('me.toReconfirmCount', { count: String(events.toReconfirm) })}</p>
+	{/if}
 	{#if events.unansweredMyTeam > 0}
 		<p class="notice">{t('me.unansweredCount', { count: String(events.unansweredMyTeam) })}</p>
 	{/if}
@@ -21,10 +24,11 @@
 	{#snippet list(matches: typeof events.matches)}
 		<ul class="events">
 			{#each matches as match (match.id)}
-				<li class="event" class:unanswered={match.isMyTeam && !match.myAnswer}>
+				<li class="event" class:unanswered={(match.isMyTeam && !match.myAnswer) || match.needsReconfirm}>
 					<a class="details" href="/{data.club.slug}/matches/{match.id}">
 						<time datetime={match.startsAt}>{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</time>
 						{#if match.isMyTeam && !match.myAnswer}<span class="flag">{t('me.notAnswered')}</span>{/if}
+						{#if match.needsReconfirm}<span class="flag">{t('me.reconfirm')}</span>{/if}
 						{#if match.inLineup}<span class="flag playing">{t('me.inLineup')}</span>{/if}
 						<span class="what">
 							<strong>{t('match.team', { team: match.team.name })}</strong>
@@ -32,7 +36,7 @@
 						</span>
 						<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
 					</a>
-					<AnswerButtons matchId={match.id} current={match.myAnswer} locale={data.locale} />
+					<AnswerButtons matchId={match.id} current={match.needsReconfirm ? null : match.myAnswer} locale={data.locale} />
 				</li>
 			{/each}
 		</ul>

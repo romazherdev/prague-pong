@@ -9,6 +9,8 @@ export type MyMatch = CalendarMatch & {
 	isMyTeam: boolean;
 	/** The member's answer, or null if they haven't answered. */
 	myAnswer: MatchAnswer | null;
+	/** The match was moved after they said yes or maybe: they should answer again. */
+	needsReconfirm: boolean;
 	/** The captain put the member in the line-up. */
 	inLineup: boolean;
 };
@@ -20,6 +22,8 @@ export type MyEvents = {
 	matches: MyMatch[];
 	/** How many of their own team's upcoming matches they haven't answered. */
 	unansweredMyTeam: number;
+	/** How many moved matches (any team) they should answer again. */
+	toReconfirm: number;
 };
 
 /** What a member sees when they open their personal link. */
@@ -43,14 +47,16 @@ export function myEventsModule(deps: {
 			const matches = calendar.listMatches(clubId).map((m) => ({
 				...m,
 				isMyTeam: m.team.id === team?.id,
-				myAnswer: answers.get(m.id) ?? null,
+				myAnswer: answers.get(m.id)?.answer ?? null,
+				needsReconfirm: answers.get(m.id)?.needsReconfirm ?? false,
 				inLineup: inLineup.has(m.id)
 			}));
 			return {
 				name: me.name,
 				team: team ?? null,
 				matches,
-				unansweredMyTeam: matches.filter((m) => m.isMyTeam && !m.myAnswer).length
+				unansweredMyTeam: matches.filter((m) => m.isMyTeam && !m.myAnswer).length,
+				toReconfirm: matches.filter((m) => m.needsReconfirm).length
 			};
 		}
 	};

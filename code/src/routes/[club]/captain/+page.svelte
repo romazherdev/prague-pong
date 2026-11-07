@@ -19,6 +19,7 @@
 					<span class="when">{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</span>
 					<span class="what"><strong>{t('match.team', { team: match.team.name })}</strong> {t('match.versus', { opponent: match.opponent })}</span>
 					<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
+					{#if match.needsAttention}<span class="attention">{t('lineup.needsAttention')}</span>{/if}
 					<span class="answers">
 						<span class="yes">{t('responses.yes', { count: String(match.answers.yes) })}</span>
 						<span class="maybe">{t('responses.maybe', { count: String(match.answers.maybe) })}</span>
@@ -43,6 +44,14 @@
 	}
 	.what {
 		width: 100%;
+	}
+	.attention {
+		background: #1d4ed8;
+		color: #fff;
+		border-radius: 999px;
+		padding: 0 0.5rem;
+		font-size: 0.8rem;
+		font-weight: 600;
 	}
 	.answers {
 		display: flex;

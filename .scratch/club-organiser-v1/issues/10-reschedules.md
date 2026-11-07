@@ -4,7 +4,7 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] The team's captain or an admin can change a match's date and time
 - [ ] On a date or time change, every yes and maybe for that match becomes "please reconfirm"; no answers stay as they are (covered by a test)

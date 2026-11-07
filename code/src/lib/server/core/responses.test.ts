@@ -51,14 +51,14 @@ describe('recordResponse', () => {
 	});
 });
 
-describe('myAnswer', () => {
+describe('myResponse', () => {
 	it("is the member's current answer to a match, or null", () => {
 		const { core, club, match, member, teamA } = setup();
 		const petr = member('Petr', teamA.id);
 
-		expect(core.myAnswer(petr.actor, club.id, match.id)).toBeNull();
+		expect(core.myResponse(petr.actor, club.id, match.id)).toBeNull();
 		core.recordResponse(petr.actor, club.id, match.id, 'maybe');
-		expect(core.myAnswer(petr.actor, club.id, match.id)).toBe('maybe');
+		expect(core.myResponse(petr.actor, club.id, match.id)).toEqual({ answer: 'maybe', needsReconfirm: false });
 	});
 });
 

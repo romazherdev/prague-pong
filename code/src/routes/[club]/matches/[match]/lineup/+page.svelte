@@ -21,7 +21,8 @@
 
 	const own = $derived(data.candidates.filter((c) => !c.fromOtherTeam));
 	const others = $derived(data.candidates.filter((c) => c.fromOtherTeam));
-	const answerLabel = (a: string | null) => t(`lineup.answer.${a ?? 'none'}` as MessageKey);
+	const answerLabel = (c: { answer: string | null; needsReconfirm: boolean }) =>
+		t(`lineup.answer.${c.needsReconfirm ? 'reconfirm' : (c.answer ?? 'none')}` as MessageKey);
 </script>
 
 <p><a href="/{data.club.slug}/matches/{data.match.id}">{t('match.backToMatch')}</a></p>
@@ -32,6 +33,16 @@
 </p>
 
 <ClashNotes clashes={data.clashes} locale={data.locale} />
+
+{#if data.needsAttention}
+	<div class="warning attention" role="status">
+		<strong>{t('lineup.needsAttention')}</strong>
+		<p>{t('lineup.needsAttentionHint')}</p>
+		<form method="POST" action="?/reviewed">
+			<button type="submit">{t('lineup.markReviewed')}</button>
+		</form>
+	</div>
+{/if}
 
 {#if data.warnings.length}
 	<div class="warning" role="status">
@@ -45,7 +56,7 @@
 {/if}
 {#if form && 'error' in form && form.error}<p class="error">{t(`error.${form.error}` as MessageKey)}</p>{/if}
 
-<form method="POST" use:enhance={() => async ({ update }) => update({ reset: false })}>
+<form method="POST" action="?/save" use:enhance={() => async ({ update }) => update({ reset: false })}>
 	{#snippet group(list: typeof data.candidates)}
 		<ul class="candidates">
 			{#each list as c (c.id)}
@@ -61,7 +72,7 @@
 							onchange={(e) => toggle(c.id, e.currentTarget.checked)}
 						/>
 						<span class="name">{c.name}{#if c.fromOtherTeam && c.team} <span class="team">({c.team.name})</span>{/if}</span>
-						<span class="answer {c.answer ?? 'none'}">{answerLabel(c.answer)}</span>
+						<span class="answer {c.needsReconfirm ? 'reconfirm' : (c.answer ?? 'none')}">{answerLabel(c)}</span>
 					</label>
 				</li>
 			{/each}
@@ -124,6 +135,12 @@
 	}
 	.answer.maybe {
 		color: #a16207;
+	}
+	.answer.reconfirm {
+		color: #1d4ed8;
+	}
+	.attention {
+		margin: 0.75rem 0;
 	}
 	.answer.no {
 		color: #b91c1c;
