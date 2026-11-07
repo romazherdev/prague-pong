@@ -163,9 +163,10 @@ describe('getMatch', () => {
 			venue: { name: 'TJ Sokol Řepy', address: 'Žufanova 1113/3, Praha 6 - Řepy' },
 			startsAt: '2026-11-18T17:00:00Z',
 			endsAt: '2026-11-18T20:00:00Z',
-			competition: '6TMA'
+			competition: '6TMA',
+			isPast: false
 		});
-		expect(core.getMatch(club.id, past.id)).toMatchObject({ opponent: 'Old', endsAt: null, competition: null });
+		expect(core.getMatch(club.id, past.id)).toMatchObject({ opponent: 'Old', endsAt: null, competition: null, isPast: true });
 	});
 
 	it("does not return another club's match", () => {

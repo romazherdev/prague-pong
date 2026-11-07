@@ -3,12 +3,13 @@
  * Writes what the tests need to know (e.g. the member's personal link) to e2e/.data/state.json.
  */
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createClubCore } from '../src/lib/server/core/club-core';
 import { systemClock } from '../src/lib/server/core/ports';
 import { openDatabase } from '../src/lib/server/db/open';
 import { seedBuilders } from '../src/lib/server/db/seed-builders';
 
-const dir = 'e2e/.data';
+const dir = join(import.meta.dirname, '.data');
 rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
 const db = openDatabase(`${dir}/e2e.db`);

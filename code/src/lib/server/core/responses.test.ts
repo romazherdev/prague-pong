@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ForbiddenError, InvalidInputError, type Actor } from './access';
+import { ForbiddenError, InvalidInputError, NotFoundError, type Actor } from './access';
 import { createTestCore } from './testing';
 
 function setup() {
@@ -45,7 +45,7 @@ describe('recordResponse', () => {
 		const other = seed.club({ name: 'Other' });
 
 		expect(() => core.recordResponse(petr.actor, club.id, pastMatch.id, 'yes')).toThrow(InvalidInputError);
-		expect(() => core.recordResponse(petr.actor, club.id, 'nope', 'yes')).toThrow();
+		expect(() => core.recordResponse(petr.actor, club.id, 'nope', 'yes')).toThrow(NotFoundError);
 		expect(() => core.recordResponse(undefined, club.id, match.id, 'yes')).toThrow(ForbiddenError);
 		expect(() => core.recordResponse(petr.actor, other.id, match.id, 'yes')).toThrow(ForbiddenError);
 	});
@@ -65,7 +65,7 @@ describe('myAnswer', () => {
 describe('myUpcomingEvents: unanswered', () => {
 	it('marks the matches the member has not answered yet and counts them', () => {
 		const { core, club, match, member, teamA, seed, venue } = setup();
-		const second = seed.match({ clubId: club.id, teamId: teamA.id, venueId: venue.id, opponent: 'Second', isHome: false, startsAt: '2026-11-24T17:00:00Z' });
+		seed.match({ clubId: club.id, teamId: teamA.id, venueId: venue.id, opponent: 'Second', isHome: false, startsAt: '2026-11-24T17:00:00Z' });
 		const petr = member('Petr', teamA.id);
 		core.recordResponse(petr.actor, club.id, match.id, 'no');
 
@@ -76,7 +76,6 @@ describe('myUpcomingEvents: unanswered', () => {
 			['Second', null]
 		]);
 		expect(mine.unansweredMyTeam).toBe(1);
-		void second;
 	});
 });
 
@@ -98,8 +97,8 @@ describe('matchResponses', () => {
 		const r = core.matchResponses(petr.actor, club.id, match.id);
 
 		expect(r.yes).toEqual([
-			{ id: eva.id, name: 'Eva', team: { id: teamB.id, name: 'B' }, isSubstitute: true },
-			{ id: petr.id, name: 'Petr', team: { id: teamA.id, name: 'A' }, isSubstitute: false }
+			{ id: eva.id, name: 'Eva', team: { id: teamB.id, name: 'B' }, fromOtherTeam: true },
+			{ id: petr.id, name: 'Petr', team: { id: teamA.id, name: 'A' }, fromOtherTeam: false }
 		]);
 		expect(r.maybe.map((m) => m.name)).toEqual(['Adam']);
 		expect(r.no.map((m) => m.name)).toEqual(['Zdena']);

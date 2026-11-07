@@ -3,7 +3,7 @@ import { translator } from '#lib/i18n/messages.js';
 import type { Locale } from '#lib/i18n/locales.js';
 import { appCore, MEMBER_COOKIE, SESSION_COOKIE } from './app';
 import { ForbiddenError, InvalidInputError, NotFoundError } from './core/access';
-import { isMatchAnswer } from './core/responses';
+import { isMatchAnswer } from '#lib/answers.js';
 
 /**
  * The club in the URL, whoever is signed in to it (session) and the member whose personal link this device
@@ -51,17 +51,24 @@ export function rememberMember(cookies: Cookies, token: string) {
 }
 
 /**
- * Handles an answer form (AnswerButtons): records the answer of the device's member (personal link,
- * else the signed-in member).
+ * Who answers on this device: the member whose personal link it holds, else the signed-in member.
+ * (A phone can hold both, e.g. a captain who also opened a teammate's link; the link wins, as on "my events".)
  */
+export const answeringActor = (req: ReturnType<typeof clubRequest>) => req.member?.actor ?? req.actor;
+
+/** Handles an answer form (AnswerButtons) for the device's member. */
 export async function answerAction(event: Parameters<typeof clubRequest>[0] & { request: Request }) {
 	const req = clubRequest(event);
 	const form = await event.request.formData();
 	const matchId = String(form.get('matchId') ?? '');
 	const answer = form.get('answer');
-	if (!isMatchAnswer(answer)) return fail(400, { error: 'answerInvalid' as const });
-	return guardedForm(req, () => {
-		req.core.recordResponse(req.member?.actor ?? req.actor, req.club.id, matchId, answer);
+	if (!isMatchAnswer(answer)) return fail(400, { error: 'answerInvalid' as const, matchId });
+	const actor = answeringActor(req);
+	// No member on this device (e.g. their link was replaced): say so, rather than sending them to the captains' sign-in.
+	if (!actor) return fail(403, { error: 'linkInvalid' as const, matchId });
+	const result = guardedForm(req, () => {
+		req.core.recordResponse(actor, req.club.id, matchId, answer);
 		return { answered: matchId };
 	});
+	return 'status' in result ? fail(result.status, { ...result.data, matchId }) : result;
 }

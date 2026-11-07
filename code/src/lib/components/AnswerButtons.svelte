@@ -3,23 +3,37 @@
 	import { translator, type MessageKey } from '#lib/i18n/messages.js';
 	import type { Locale } from '#lib/i18n/locales.js';
 
-	type Answer = 'yes' | 'maybe' | 'no';
-	let { matchId, current, locale, action = '?/answer' }: { matchId: string; current: Answer | null; locale: Locale; action?: string } =
-		$props();
+	import { MATCH_ANSWERS, type MatchAnswer } from '#lib/answers.js';
+
+	let {
+		matchId,
+		current,
+		locale,
+		action = '?/answer'
+	}: { matchId: string; current: MatchAnswer | null; locale: Locale; action?: string } = $props();
 	const t = $derived(translator(locale));
-	const answers: Answer[] = ['yes', 'maybe', 'no'];
+	let error: string | null = $state(null);
 </script>
 
 <!-- One tap answers: each button is its own submit. Works without JavaScript too. -->
-<form method="POST" {action} use:enhance={() => async ({ update }) => update({ reset: false, invalidateAll: true })}>
+<form
+	method="POST"
+	{action}
+	use:enhance={() =>
+		async ({ result, update }) => {
+			error = result.type === 'failure' ? String(result.data?.error ?? 'answerInvalid') : null;
+			await update({ reset: false, invalidateAll: true });
+		}}
+>
 	<input type="hidden" name="matchId" value={matchId} />
 	<div class="answers" role="group" aria-label={t('answer.label')}>
-		{#each answers as answer (answer)}
+		{#each MATCH_ANSWERS as answer (answer)}
 			<button type="submit" name="answer" value={answer} class={answer} aria-pressed={current === answer}>
 				{t(`answer.${answer}` as MessageKey)}
 			</button>
 		{/each}
 	</div>
+	{#if error}<p class="error" role="alert">{t(`error.${error}` as MessageKey)}</p>{/if}
 </form>
 
 <style>

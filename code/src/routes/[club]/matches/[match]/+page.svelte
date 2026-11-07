@@ -62,7 +62,7 @@
 		{#each [['yes', r.yes], ['maybe', r.maybe], ['no', r.no], ['unanswered', r.unanswered]] as const as [key, list] (key)}
 			<dt class={key}>{t(`responses.${key}`, { count: String(list.length) })}</dt>
 			<dd>
-				{#each list as m, i (m.id)}{i > 0 ? ', ' : ''}{m.name}{#if m.isSubstitute && m.team}
+				{#each list as m, i (m.id)}{i > 0 ? ', ' : ''}{m.name}{#if m.fromOtherTeam && m.team}
 						<span class="sub">({m.team.name})</span>{/if}{:else}–{/each}
 			</dd>
 		{/each}

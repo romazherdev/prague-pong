@@ -19,6 +19,8 @@ export type MatchDetail = CalendarMatch & {
 	endsAt: string | null;
 	/** League competition code, e.g. "6TMA"; null for matches not imported from STIS. */
 	competition: string | null;
+	/** The match's day is over (club time zone): it can no longer be answered. */
+	isPast: boolean;
 };
 
 type MatchRow = {
@@ -230,18 +232,15 @@ export function calendarModule(deps: { db: Database.Database; clock: Clock }) {
 				.map(toCalendarMatch);
 		},
 
-		/** True once the match's day (in the club's time zone) is over: the same rule the calendar uses. */
-		isPast(clubId: string, startsAt: string): boolean {
-			const timeZone = clubTimeZone(clubId) ?? DEFAULT_TIME_ZONE;
-			return localDate(new Date(startsAt), timeZone) < localDate(clock.now(), timeZone);
-		},
-
 		/** One of the club's matches, past or upcoming; undefined if the club has no such match. */
 		getMatch(clubId: string, matchId: string): MatchDetail | undefined {
 			const row = db.prepare(`${MATCH_SELECT} WHERE m.club_id = ? AND m.id = ?`).get(clubId, matchId) as
 				| MatchRow
 				| undefined;
-			return row && { ...toCalendarMatch(row), endsAt: row.ends_at, competition: row.competition };
+			if (!row) return undefined;
+			const timeZone = clubTimeZone(clubId) ?? DEFAULT_TIME_ZONE;
+			const isPast = localDate(new Date(row.starts_at), timeZone) < localDate(clock.now(), timeZone);
+			return { ...toCalendarMatch(row), endsAt: row.ends_at, competition: row.competition, isPast };
 		}
 	};
 }

@@ -21,10 +21,10 @@
 	{#snippet list(matches: typeof events.matches)}
 		<ul class="events">
 			{#each matches as match (match.id)}
-				<li class="event" class:unanswered={!match.myAnswer}>
+				<li class="event" class:unanswered={match.isMyTeam && !match.myAnswer}>
 					<a class="details" href="/{data.club.slug}/matches/{match.id}">
 						<time datetime={match.startsAt}>{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</time>
-						{#if !match.myAnswer}<span class="flag">{t('me.notAnswered')}</span>{/if}
+						{#if match.isMyTeam && !match.myAnswer}<span class="flag">{t('me.notAnswered')}</span>{/if}
 						<span class="what">
 							<strong>{t('match.team', { team: match.team.name })}</strong>
 							{t('match.versus', { opponent: match.opponent })}

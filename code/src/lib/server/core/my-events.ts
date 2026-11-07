@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { accessRules, type Actor } from './access';
 import type { CalendarMatch, calendarModule, Team } from './calendar';
-import type { MatchAnswer } from './responses';
+import type { MatchAnswer, responsesModule } from './responses';
 
 export type MyMatch = CalendarMatch & {
 	/** The member's own team plays it. */
@@ -20,8 +20,12 @@ export type MyEvents = {
 };
 
 /** What a member sees when they open their personal link. */
-export function myEventsModule(deps: { db: Database.Database; calendar: ReturnType<typeof calendarModule> }) {
-	const { db, calendar } = deps;
+export function myEventsModule(deps: {
+	db: Database.Database;
+	calendar: ReturnType<typeof calendarModule>;
+	responses: ReturnType<typeof responsesModule>;
+}) {
+	const { db, calendar, responses } = deps;
 	const rules = accessRules(db);
 
 	return {
@@ -30,14 +34,7 @@ export function myEventsModule(deps: { db: Database.Database; calendar: ReturnTy
 			const team = db
 				.prepare('SELECT t.id, t.name FROM members m JOIN teams t ON t.id = m.team_id WHERE m.id = ?')
 				.get(me.id) as Team | undefined;
-			const answers = new Map(
-				(
-					db.prepare('SELECT match_id, answer FROM match_responses WHERE member_id = ?').all(me.id) as {
-						match_id: string;
-						answer: MatchAnswer;
-					}[]
-				).map((r) => [r.match_id, r.answer])
-			);
+			const answers = responses.answersOf(me.id);
 			const matches = calendar.listMatches(clubId).map((m) => ({
 				...m,
 				isMyTeam: m.team.id === team?.id,

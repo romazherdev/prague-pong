@@ -20,13 +20,14 @@ export type ClubCore = ReturnType<typeof createClubCore>;
  */
 export function createClubCore(deps: CoreDeps) {
 	const calendar = calendarModule(deps);
+	const responses = responsesModule({ ...deps, calendar });
 	return {
 		resolveLocale,
 		...calendar,
 		...accessModule(deps),
 		...membersModule(deps),
 		...rostersModule(deps),
-		...responsesModule({ ...deps, calendar }),
-		...myEventsModule({ ...deps, calendar })
+		...responses,
+		...myEventsModule({ ...deps, calendar, responses })
 	};
 }

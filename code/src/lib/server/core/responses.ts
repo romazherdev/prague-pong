@@ -3,16 +3,22 @@ import { accessRules, InvalidInputError, NotFoundError, type Actor } from './acc
 import type { calendarModule, Team } from './calendar';
 import type { Clock } from './ports';
 
-export const MATCH_ANSWERS = ['yes', 'maybe', 'no'] as const;
-export type MatchAnswer = (typeof MATCH_ANSWERS)[number];
-export const isMatchAnswer = (v: unknown): v is MatchAnswer => (MATCH_ANSWERS as readonly unknown[]).includes(v);
+import type { MatchAnswer } from '#lib/answers.js';
 
-/** A member as listed under a match's answers. A substitute is from another team than the match's. */
-export type RespondingMember = { id: string; name: string; team: Team | null; isSubstitute: boolean };
+export { isMatchAnswer, MATCH_ANSWERS, type MatchAnswer } from '#lib/answers.js';
 
-export type MatchResponses = Record<MatchAnswer, RespondingMember[]> & {
+/** A member listed under a match's answers (or as not having answered). */
+export type ResponseListMember = {
+	id: string;
+	name: string;
+	team: Team | null;
+	/** Not on the match's team: a possible substitute. */
+	fromOtherTeam: boolean;
+};
+
+export type MatchResponses = Record<MatchAnswer, ResponseListMember[]> & {
 	/** Active members of the match's team who haven't answered. */
-	unanswered: RespondingMember[];
+	unanswered: ResponseListMember[];
 };
 
 export function responsesModule(deps: { db: Database.Database; clock: Clock; calendar: ReturnType<typeof calendarModule> }) {
@@ -25,11 +31,20 @@ export function responsesModule(deps: { db: Database.Database; clock: Clock; cal
 			const me = rules.requireMember(actor, clubId);
 			const match = calendar.getMatch(clubId, matchId);
 			if (!match) throw new NotFoundError('No such match in this club');
-			if (calendar.isPast(clubId, match.startsAt)) throw new InvalidInputError('matchPast');
+			if (match.isPast) throw new InvalidInputError('matchPast');
 			db.prepare(
 				`INSERT INTO match_responses (match_id, member_id, answer, answered_at) VALUES (?, ?, ?, ?)
 				 ON CONFLICT (match_id, member_id) DO UPDATE SET answer = excluded.answer, answered_at = excluded.answered_at`
 			).run(matchId, me.id, answer, clock.now().toISOString());
+		},
+
+		/** All of a member's answers, by match id (for "my events"). */
+		answersOf(memberId: string): Map<string, MatchAnswer> {
+			const rows = db.prepare('SELECT match_id, answer FROM match_responses WHERE member_id = ?').all(memberId) as {
+				match_id: string;
+				answer: MatchAnswer;
+			}[];
+			return new Map(rows.map((r) => [r.match_id, r.answer]));
 		},
 
 		/** The member's current answer to a match, or null. */
@@ -68,7 +83,7 @@ export function responsesModule(deps: { db: Database.Database; clock: Clock; cal
 					id: r.id,
 					name: r.name,
 					team: r.team_id ? { id: r.team_id, name: r.team_name! } : null,
-					isSubstitute: r.team_id !== match.team.id
+					fromOtherTeam: r.team_id !== match.team.id
 				};
 				result[r.answer ?? 'unanswered'].push(member);
 			}
