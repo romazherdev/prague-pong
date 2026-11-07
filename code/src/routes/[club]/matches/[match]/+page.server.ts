@@ -13,8 +13,7 @@ export const load: PageServerLoad = (event) => {
 	const responses = who ? core.matchResponses(who, club.id, match.id) : null;
 	const myAnswer = who ? core.myAnswer(who, club.id, match.id) : null;
 	const lineup = who ? core.matchLineup(who, club.id, match.id) : [];
-	// The link to the line-up page shows for the team's captain and admins (signed in).
-	const canManageLineup = !!req.signedIn && (req.signedIn.isAdmin || req.signedIn.captainOf.some((t) => t.id === match.team.id));
+	const canManageLineup = core.canManageLineup(req.actor, club.id, match.id);
 	return { match, responses, myAnswer, lineup, canManageLineup, canAnswer: !!who && !match.isPast };
 };
 

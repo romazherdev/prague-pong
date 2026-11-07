@@ -19,7 +19,13 @@
 					<span class="when">{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</span>
 					<span class="what"><strong>{t('match.team', { team: match.team.name })}</strong> {t('match.versus', { opponent: match.opponent })}</span>
 					<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
-					<span class="size" class:full={match.lineupSize === 4}>{t('captain.lineupSize', { count: String(match.lineupSize) })}</span>
+					<span class="answers">
+						<span class="yes">{t('responses.yes', { count: String(match.answers.yes) })}</span>
+						<span class="maybe">{t('responses.maybe', { count: String(match.answers.maybe) })}</span>
+						<span class="no">{t('responses.no', { count: String(match.answers.no) })}</span>
+					</span>
+					<span class="size" class:full={match.lineupSize === match.lineupMax}
+						>{t('captain.lineupSize', { count: String(match.lineupSize), max: String(match.lineupMax) })}</span>
 				</a>
 			</li>
 		{/each}
@@ -37,6 +43,21 @@
 	}
 	.what {
 		width: 100%;
+	}
+	.answers {
+		display: flex;
+		gap: 0.75rem;
+		font-size: 0.9rem;
+		font-weight: 600;
+	}
+	.answers .yes {
+		color: #15803d;
+	}
+	.answers .maybe {
+		color: #a16207;
+	}
+	.answers .no {
+		color: #b91c1c;
 	}
 	.size {
 		margin-left: auto;

@@ -27,7 +27,7 @@ describe('lineupView', () => {
 		const petr = member('Petr', teamA.id);
 		const zdena = member('Zdena', teamA.id);
 		const eva = member('Eva', teamB.id);
-		const karel = member('Karel', teamB.id);
+		member('Karel', teamB.id);
 		member('Gone', teamA.id, false);
 		core.recordResponse(petr.link, club.id, match.id, 'yes');
 		core.recordResponse(zdena.link, club.id, match.id, 'no');
@@ -44,7 +44,6 @@ describe('lineupView', () => {
 			['Karel', null, true]
 		]);
 		expect(view.lineup).toEqual([]);
-		void karel;
 	});
 
 	it('is only for the match team\'s captain or an admin, signed in', () => {
@@ -143,6 +142,30 @@ describe('members see when they are in a line-up', () => {
 	});
 });
 
+describe('line-up size and permission helpers', () => {
+	it("doesn't count a member who left the club since being picked", () => {
+		const { core, club, match, member, teamA, captainA, asAdmin } = setup();
+		const petr = member('Petr', teamA.id);
+		core.setLineup(captainA.session, club.id, match.id, [petr.id, captainA.id]);
+
+		core.deactivateMember(asAdmin, club.id, petr.id);
+
+		expect(core.captainMatches(captainA.session, club.id)[0].lineupSize).toBe(1);
+		expect(core.lineupView(captainA.session, club.id, match.id).lineup.map((p) => p.name)).toEqual(['Kapitán']);
+	});
+
+	it('tells whether the actor may manage a match line-up', () => {
+		const { core, club, match, captainA, asAdmin, member, teamB } = setup();
+		const other = member('Other', teamB.id);
+
+		expect(core.canManageLineup(captainA.session, club.id, match.id)).toBe(true);
+		expect(core.canManageLineup(asAdmin, club.id, match.id)).toBe(true);
+		expect(core.canManageLineup(captainA.link, club.id, match.id)).toBe(false);
+		expect(core.canManageLineup(other.session, club.id, match.id)).toBe(false);
+		expect(core.canManageLineup(undefined, club.id, match.id)).toBe(false);
+	});
+});
+
 describe('matchLineup', () => {
 	it('shows any member who is playing', () => {
 		const { core, club, match, member, teamA, teamB, captainA } = setup();
@@ -165,7 +188,12 @@ describe('captainMatches', () => {
 		const petr = member('Petr', teamA.id);
 		core.setLineup(captainA.session, club.id, match.id, [petr.id, captainA.id]);
 
-		expect(core.captainMatches(captainA.session, club.id).map((m) => [m.opponent, m.lineupSize])).toEqual([['Sokol', 2]]);
+		core.recordResponse(petr.link, club.id, match.id, 'yes');
+		core.recordResponse(captainA.link, club.id, match.id, 'maybe');
+
+		expect(core.captainMatches(captainA.session, club.id).map((m) => [m.opponent, m.lineupSize, m.answers])).toEqual([
+			['Sokol', 2, { yes: 1, maybe: 1, no: 0 }]
+		]);
 		expect(core.captainMatches(asAdmin, club.id).map((m) => m.opponent)).toEqual(['Sokol', 'B match']);
 		expect(() => core.captainMatches(petr.session, club.id)).toThrow(ForbiddenError);
 	});

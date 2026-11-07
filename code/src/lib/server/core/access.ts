@@ -106,7 +106,36 @@ export function accessRules(db: Database.Database) {
 				.get(hashSecret(sessionToken), now.toISOString()) as { id: string } | undefined
 		)?.id;
 
-	return { member, isActiveMemberOf, requireMember, isAdmin, requireAdmin, requireCaptainOf, memberIdBySession };
+	/** Ids of the club's teams the member captains. */
+	const teamIdsCaptainedBy = (memberId: string, clubId: string) =>
+		new Set(
+			(db.prepare('SELECT id FROM teams WHERE captain_member_id = ? AND club_id = ?').all(memberId, clubId) as { id: string }[]).map(
+				(t) => t.id
+			)
+		);
+
+	/** Whether the actor may act as captain of the team (its captain or an admin, signed in). */
+	const canCaptain = (actor: Actor | undefined, clubId: string, teamId: string) => {
+		try {
+			requireCaptainOf(actor, clubId, teamId);
+			return true;
+		} catch (e) {
+			if (e instanceof ForbiddenError) return false;
+			throw e;
+		}
+	};
+
+	return {
+		member,
+		isActiveMemberOf,
+		requireMember,
+		isAdmin,
+		requireAdmin,
+		requireCaptainOf,
+		canCaptain,
+		teamIdsCaptainedBy,
+		memberIdBySession
+	};
 }
 
 export function accessModule(deps: { db: Database.Database; clock: Clock; mailer: Mailer }) {

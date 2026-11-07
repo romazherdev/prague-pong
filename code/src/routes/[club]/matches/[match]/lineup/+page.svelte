@@ -5,7 +5,6 @@
 
 	let { data, form }: PageProps = $props();
 	const t = $derived(translator(data.locale));
-	const LINEUP_SIZE = 4;
 
 	// The picked players, kept in the page so the counter and the 4-player limit react as boxes are ticked.
 	let picked = $state(new Set<string>());
@@ -55,7 +54,7 @@
 							name="memberId"
 							value={c.id}
 							{checked}
-							disabled={!checked && picked.size >= LINEUP_SIZE}
+							disabled={!checked && picked.size >= data.maxSize}
 							onchange={(e) => toggle(c.id, e.currentTarget.checked)}
 						/>
 						<span class="name">{c.name}{#if c.fromOtherTeam && c.team} <span class="team">({c.team.name})</span>{/if}</span>
@@ -73,7 +72,7 @@
 	{@render group(others)}
 
 	<div class="save">
-		<span>{t('lineup.count', { count: String(picked.size) })}</span>
+		<span>{t('lineup.count', { count: String(picked.size), max: String(data.maxSize) })}</span>
 		<button type="submit" class="primary">{t('lineup.save')}</button>
 		{#if form && 'saved' in form}<span class="ok">✓ {t('members.saved')}</span>{/if}
 	</div>
