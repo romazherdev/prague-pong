@@ -33,6 +33,13 @@ const migrations: string[] = [
 		UNIQUE (club_id, stis_id)
 	);
 	CREATE INDEX matches_club_starts ON matches (club_id, starts_at);
+	`,
+	// STIS calendar exports carry no match id: fixtures are identified by competition + home + away (ADR 0002).
+	`
+	ALTER TABLE matches RENAME COLUMN stis_id TO fixture_key;
+	ALTER TABLE matches ADD COLUMN competition TEXT;
+	ALTER TABLE matches ADD COLUMN ends_at TEXT; -- ISO 8601, UTC
+	CREATE INDEX venues_address ON venues (lower(address));
 	`
 ];
 

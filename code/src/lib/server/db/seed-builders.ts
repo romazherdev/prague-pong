@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
+import { DEFAULT_TIME_ZONE } from '../core/club-core';
 
 /**
  * Inserts arrange-data for tests and the dev seed script.
@@ -14,7 +15,7 @@ export function seedBuilders(db: Database.Database) {
 				id,
 				input.name,
 				slug,
-				input.timeZone ?? 'Europe/Prague'
+				input.timeZone ?? DEFAULT_TIME_ZONE
 			);
 			return { id, ...input, slug };
 		},
