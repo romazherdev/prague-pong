@@ -59,3 +59,20 @@ describe('findClubBySlug', () => {
 		expect(core.findClubBySlug('nope')).toBeUndefined();
 	});
 });
+
+describe('createClub', () => {
+	it('creates a club that can then be found by slug, in Prague time by default', () => {
+		const { core } = createTestCore({ now: '2026-11-10T14:00:00Z' });
+
+		const club = core.createClub({ name: 'Mladí Veteráni', slug: 'mladi-veterani' });
+
+		expect(core.findClubBySlug('mladi-veterani')).toEqual({ ...club, timeZone: 'Europe/Prague' });
+	});
+
+	it('refuses a slug that is already taken', () => {
+		const { core } = createTestCore({ now: '2026-11-10T14:00:00Z' });
+		core.createClub({ name: 'A', slug: 'same' });
+
+		expect(() => core.createClub({ name: 'B', slug: 'same' })).toThrow();
+	});
+});
