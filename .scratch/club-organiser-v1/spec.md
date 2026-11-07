@@ -121,7 +121,7 @@ Build and ship in four steps, each released to the club when done:
 **Domain model**: see `CONTEXT.md` at the repo root for the glossary.
 
 **Rules**
-- Re-importing is idempotent: matches are keyed by their STIS id.
+- Re-importing is idempotent: matches are keyed by their fixture key (competition + home + away; the STIS export has no match id, see ADR 0002). Fixtures that changed in STIS are reported, not applied, unless the admin asks for it.
 - Rescheduling a match turns all yes and maybe answers for it into "please reconfirm" and marks its line-up as needing attention.
 - When a line-up player changes their answer to no, the slot shows as open and the captain is notified. Nothing is swapped automatically.
 - Clash checks run per evening:
