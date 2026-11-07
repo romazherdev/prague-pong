@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { DEFAULT_TIME_ZONE } from '../core/club-core';
 
 /**
@@ -58,13 +58,16 @@ export function seedBuilders(db: Database.Database) {
 		},
 		member(input: { clubId: string; name: string; email?: string; isAdmin?: boolean; active?: boolean }) {
 			const id = randomUUID();
-			db.prepare('INSERT INTO members (id, club_id, name, email, is_admin, active) VALUES (?, ?, ?, ?, ?, ?)').run(
+			db.prepare(
+				'INSERT INTO members (id, club_id, name, email, is_admin, active, link_token) VALUES (?, ?, ?, ?, ?, ?, ?)'
+			).run(
 				id,
 				input.clubId,
 				input.name,
 				input.email?.toLowerCase() ?? null,
 				input.isAdmin ? 1 : 0,
-				input.active === false ? 0 : 1
+				input.active === false ? 0 : 1,
+				randomBytes(32).toString('base64url')
 			);
 			return { id, ...input };
 		}

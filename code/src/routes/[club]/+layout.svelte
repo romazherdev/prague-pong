@@ -8,9 +8,13 @@
 </script>
 
 <nav class="club-nav">
+	{#if data.member}
+		<a href="{base}/me">{t('nav.me')}</a>
+	{/if}
 	<a href={base}>{t('nav.calendar')}</a>
 	{#if data.signedIn?.isAdmin}
 		<a href="{base}/admin">{t('nav.admin')}</a>
+		<a href="{base}/admin/members">{t('nav.members')}</a>
 	{/if}
 	<span class="spacer"></span>
 	{#if data.signedIn}

@@ -4,7 +4,7 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] An admin can add a member (name; email optional), edit them, and deactivate them; deactivated members disappear from lists but their history is kept
 - [ ] Each member has a long random token; their personal link identifies them without a login

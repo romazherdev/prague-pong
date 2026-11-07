@@ -15,10 +15,15 @@ function fromAcceptLanguage(header: string): Locale | undefined {
 }
 
 /**
- * Which language to show. Order: the preference saved on this device, then the browser's languages, then Czech.
- * (Ticket 05 puts the member's saved preference in front of all of these.)
+ * Which language to show. Order: the member's saved preference, then the preference saved on this device,
+ * then the browser's languages, then Czech.
  */
-export function resolveLocale(input: { devicePreference?: string; acceptLanguage?: string }): Locale {
+export function resolveLocale(input: {
+	memberPreference?: string | null;
+	devicePreference?: string;
+	acceptLanguage?: string;
+}): Locale {
+	if (isLocale(input.memberPreference)) return input.memberPreference;
 	if (isLocale(input.devicePreference)) return input.devicePreference;
 	return (input.acceptLanguage && fromAcceptLanguage(input.acceptLanguage)) || defaultLocale;
 }

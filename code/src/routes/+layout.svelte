@@ -17,7 +17,8 @@
 <header>
 	<strong>{t('app.name')}</strong>
 	<form method="POST" action="/language">
-		<input type="hidden" name="redirectTo" value={page.url.pathname} />
+		<input type="hidden" name="redirectTo" value={page.url.pathname + page.url.search} />
+		<input type="hidden" name="club" value={page.params.club ?? ''} />
 		<label>
 			<span class="visually-hidden">{t('language.label')}</span>
 			<select name="lang" value={data.locale}>

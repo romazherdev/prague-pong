@@ -16,6 +16,14 @@ export class ForbiddenError extends Error {
 	override name = 'ForbiddenError';
 }
 
+/** The input breaks a rule; `code` says which, so routes can show a translated message. */
+export class InvalidInputError extends Error {
+	override name = 'InvalidInputError';
+	constructor(readonly code: 'nameRequired' | 'emailTaken' | 'emailInvalid' | 'cannotDeactivateSelf' | (string & {})) {
+		super(code);
+	}
+}
+
 /** A command referred to something that doesn't exist in this club. */
 export class NotFoundError extends Error {
 	override name = 'NotFoundError';
@@ -111,11 +119,12 @@ export function accessModule(deps: { db: Database.Database; clock: Clock; mailer
 				return existing;
 			}
 			const id = randomUUID();
-			db.prepare('INSERT INTO members (id, club_id, name, email, is_admin) VALUES (?, ?, ?, ?, 1)').run(
+			db.prepare('INSERT INTO members (id, club_id, name, email, is_admin, link_token) VALUES (?, ?, ?, ?, 1, ?)').run(
 				id,
 				clubId,
 				input.name.trim(),
-				email
+				email,
+				newSecret()
 			);
 			return { id, name: input.name.trim() };
 		},

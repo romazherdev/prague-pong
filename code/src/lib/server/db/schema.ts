@@ -64,6 +64,14 @@ const migrations: string[] = [
 		member_id TEXT NOT NULL REFERENCES members(id),
 		expires_at TEXT NOT NULL
 	);
+	`,
+	// Personal links and saved language (ticket 05). Link tokens are kept readable so an admin can re-send
+	// a member's link at any time (ADR 0004).
+	`
+	ALTER TABLE members ADD COLUMN link_token TEXT;
+	ALTER TABLE members ADD COLUMN language TEXT;
+	UPDATE members SET link_token = lower(hex(randomblob(32))) WHERE link_token IS NULL;
+	CREATE UNIQUE INDEX members_link_token ON members (link_token);
 	`
 ];
 

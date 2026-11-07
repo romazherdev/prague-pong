@@ -22,6 +22,8 @@ export function appCore(): ClubCore {
 export const LANGUAGE_COOKIE = 'lang';
 /** Holds the session token of a signed-in admin or captain. */
 export const SESSION_COOKIE = 'session';
+/** Holds the member's personal-link token, so the app (and the installed PWA) knows who they are. */
+export const MEMBER_COOKIE = 'member';
 export const defaultClubSlug = () => process.env.DEFAULT_CLUB_SLUG ?? 'mladi-veterani';
 
 /**
