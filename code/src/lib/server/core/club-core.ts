@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { accessModule } from './access';
 import { calendarModule } from './calendar';
 import { resolveLocale } from './locale';
+import { lineupsModule } from './lineups';
 import { membersModule } from './members';
 import { myEventsModule } from './my-events';
 import { responsesModule } from './responses';
@@ -21,6 +22,7 @@ export type ClubCore = ReturnType<typeof createClubCore>;
 export function createClubCore(deps: CoreDeps) {
 	const calendar = calendarModule(deps);
 	const responses = responsesModule({ ...deps, calendar });
+	const lineups = lineupsModule({ ...deps, calendar, responses });
 	return {
 		resolveLocale,
 		...calendar,
@@ -28,6 +30,7 @@ export function createClubCore(deps: CoreDeps) {
 		...membersModule(deps),
 		...rostersModule(deps),
 		...responses,
-		...myEventsModule({ ...deps, calendar, responses })
+		...lineups,
+		...myEventsModule({ ...deps, calendar, responses, lineups })
 	};
 }

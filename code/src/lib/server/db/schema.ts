@@ -99,6 +99,14 @@ const migrations: string[] = [
 		answered_at TEXT NOT NULL,
 		PRIMARY KEY (match_id, member_id)
 	);
+	`,
+	// Line-ups (ticket 08): the players a captain picked for a match. No order, at most 4 (checked in the core).
+	`
+	CREATE TABLE lineup_players (
+		match_id TEXT NOT NULL REFERENCES matches(id),
+		member_id TEXT NOT NULL REFERENCES members(id),
+		PRIMARY KEY (match_id, member_id)
+	);
 	`
 ];
 

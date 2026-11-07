@@ -25,6 +25,7 @@
 					<a class="details" href="/{data.club.slug}/matches/{match.id}">
 						<time datetime={match.startsAt}>{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</time>
 						{#if match.isMyTeam && !match.myAnswer}<span class="flag">{t('me.notAnswered')}</span>{/if}
+						{#if match.inLineup}<span class="flag playing">{t('me.inLineup')}</span>{/if}
 						<span class="what">
 							<strong>{t('match.team', { team: match.team.name })}</strong>
 							{t('match.versus', { opponent: match.opponent })}
@@ -84,6 +85,9 @@
 	}
 	.what {
 		width: 100%;
+	}
+	.flag.playing {
+		background: #15803d;
 	}
 	.flag {
 		background: #1d4ed8;

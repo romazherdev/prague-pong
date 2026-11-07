@@ -4,7 +4,7 @@
 
 **Blocked by:** 06, 07
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] The captain's match view groups members by availability, with their own team first and other teams marked as substitutes
 - [ ] The captain can set a line-up of up to 4 active members from any team, with no player order

@@ -50,6 +50,20 @@
 	{/if}
 </dl>
 
+{#if data.lineup.length || data.canManageLineup}
+	<section class="lineup">
+		<h2>{t('lineup.title')}</h2>
+		{#if data.lineup.length}
+			<p>{data.lineup.map((p) => p.name).join(', ')}</p>
+		{:else}
+			<p class="hint">{t('lineup.empty')}</p>
+		{/if}
+		{#if data.canManageLineup}
+			<a class="button" href="/{data.club.slug}/matches/{match.id}/lineup">{t('lineup.edit')}</a>
+		{/if}
+	</section>
+{/if}
+
 {#if data.canAnswer}
 	<h2>{t('answer.question')}</h2>
 	<AnswerButtons matchId={match.id} current={data.myAnswer} locale={data.locale} />
@@ -131,6 +145,9 @@
 	}
 	.sub {
 		color: #555;
+	}
+	.lineup .button {
+		background: #1a1a1a;
 	}
 	.maps {
 		display: flex;

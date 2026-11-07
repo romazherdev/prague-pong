@@ -13,7 +13,13 @@ const dir = join(import.meta.dirname, '.data');
 rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
 const db = openDatabase(`${dir}/e2e.db`);
-const core = createClubCore({ db, clock: systemClock, notifier: { send() {} }, mailer: { send() {} } });
+const sentEmails: string[] = [];
+const core = createClubCore({
+	db,
+	clock: systemClock,
+	notifier: { send() {} },
+	mailer: { send: (email) => void sentEmails.push(email.text) }
+});
 const seed = seedBuilders(db);
 
 const club = core.createClub({ name: 'Mladí Veteráni', slug: 'e2e-club' });
@@ -30,5 +36,12 @@ const petr = core.addMember(asAdmin, club.id, { name: 'Petr Novák' });
 core.setMemberTeam(asAdmin, club.id, petr.id, teamA.id);
 const petrLink = core.personalLinkMessage(asAdmin, club.id, petr.id, { origin: '', locale: 'cs' }).url;
 
-writeFileSync(`${dir}/state.json`, JSON.stringify({ clubSlug: club.slug, petrLink }, null, 2));
+// A captain for team A, with a sign-in link as if they had asked for one (valid 15 minutes).
+const karel = core.addMember(asAdmin, club.id, { name: 'Karel Kapitán', email: 'karel@example.cz' });
+core.setMemberTeam(asAdmin, club.id, karel.id, teamA.id);
+core.setCaptain(asAdmin, club.id, teamA.id, karel.id);
+await core.requestSignIn(club.id, 'karel@example.cz', { origin: '', locale: 'cs' });
+const captainSignInLink = /(\/\S+\/sign-in\/\S+)/.exec(sentEmails.at(-1) ?? '')![1];
+
+writeFileSync(`${dir}/state.json`, JSON.stringify({ clubSlug: club.slug, petrLink, captainSignInLink }, null, 2));
 console.log('e2e database seeded');

@@ -12,7 +12,10 @@ export const load: PageServerLoad = (event) => {
 	const who = answeringActor(req);
 	const responses = who ? core.matchResponses(who, club.id, match.id) : null;
 	const myAnswer = who ? core.myAnswer(who, club.id, match.id) : null;
-	return { match, responses, myAnswer, canAnswer: !!who && !match.isPast };
+	const lineup = who ? core.matchLineup(who, club.id, match.id) : [];
+	// The link to the line-up page shows for the team's captain and admins (signed in).
+	const canManageLineup = !!req.signedIn && (req.signedIn.isAdmin || req.signedIn.captainOf.some((t) => t.id === match.team.id));
+	return { match, responses, myAnswer, lineup, canManageLineup, canAnswer: !!who && !match.isPast };
 };
 
 export const actions: Actions = { answer: answerAction };

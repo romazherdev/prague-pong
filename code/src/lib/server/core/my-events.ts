@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { accessRules, type Actor } from './access';
 import type { CalendarMatch, calendarModule, Team } from './calendar';
+import type { lineupsModule } from './lineups';
 import type { MatchAnswer, responsesModule } from './responses';
 
 export type MyMatch = CalendarMatch & {
@@ -8,6 +9,8 @@ export type MyMatch = CalendarMatch & {
 	isMyTeam: boolean;
 	/** The member's answer, or null if they haven't answered. */
 	myAnswer: MatchAnswer | null;
+	/** The captain put the member in the line-up. */
+	inLineup: boolean;
 };
 
 export type MyEvents = {
@@ -24,8 +27,9 @@ export function myEventsModule(deps: {
 	db: Database.Database;
 	calendar: ReturnType<typeof calendarModule>;
 	responses: ReturnType<typeof responsesModule>;
+	lineups: ReturnType<typeof lineupsModule>;
 }) {
-	const { db, calendar, responses } = deps;
+	const { db, calendar, responses, lineups } = deps;
 	const rules = accessRules(db);
 
 	return {
@@ -35,10 +39,12 @@ export function myEventsModule(deps: {
 				.prepare('SELECT t.id, t.name FROM members m JOIN teams t ON t.id = m.team_id WHERE m.id = ?')
 				.get(me.id) as Team | undefined;
 			const answers = responses.answersOf(me.id);
+			const inLineup = lineups.lineupMatchIdsOf(me.id);
 			const matches = calendar.listMatches(clubId).map((m) => ({
 				...m,
 				isMyTeam: m.team.id === team?.id,
-				myAnswer: answers.get(m.id) ?? null
+				myAnswer: answers.get(m.id) ?? null,
+				inLineup: inLineup.has(m.id)
 			}));
 			return {
 				name: me.name,

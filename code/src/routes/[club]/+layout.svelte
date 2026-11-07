@@ -12,6 +12,9 @@
 		<a href="{base}/me">{t('nav.me')}</a>
 	{/if}
 	<a href={base}>{t('nav.calendar')}</a>
+	{#if data.signedIn && (data.signedIn.isAdmin || data.signedIn.captainOf.length)}
+		<a href="{base}/captain">{t('nav.captain')}</a>
+	{/if}
 	{#if data.signedIn?.isAdmin}
 		<a href="{base}/admin">{t('nav.admin')}</a>
 		<a href="{base}/admin/members">{t('nav.members')}</a>

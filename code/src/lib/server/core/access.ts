@@ -21,7 +21,9 @@ export type InvalidInputCode =
 	| 'emailTaken'
 	| 'emailInvalid'
 	| 'cannotDeactivateSelf'
-	| 'matchPast';
+	| 'matchPast'
+	| 'lineupTooBig'
+	| 'lineupDuplicate';
 
 /** The input breaks a rule; `code` says which, so routes can show a translated message. */
 export class InvalidInputError extends Error {
