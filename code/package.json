@@ -17,7 +17,8 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"seed": "tsx scripts/seed.ts",
-		"import:fixtures": "tsx scripts/import-fixtures.ts"
+		"import:fixtures": "tsx scripts/import-fixtures.ts",
+		"setup:admin": "tsx scripts/setup-admin.ts"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^6.0.1",

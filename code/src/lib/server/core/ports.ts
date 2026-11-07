@@ -10,3 +10,10 @@ export interface Notifier {
 }
 
 export const systemClock: Clock = { now: () => new Date() };
+
+export type Email = { to: string; subject: string; text: string };
+
+/** Sends email (sign-in links). Members' emails are only collected for admins and captains. */
+export interface Mailer {
+	send(email: Email): void | Promise<void>;
+}

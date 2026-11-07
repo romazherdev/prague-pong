@@ -1,6 +1,7 @@
 import { databasePath, openDatabase } from './db/open';
 import { createClubCore, type ClubCore } from './core/club-core';
 import { systemClock } from './core/ports';
+import { createMailer } from './mailer';
 
 let core: ClubCore | undefined;
 
@@ -11,11 +12,14 @@ export function appCore(): ClubCore {
 			db: openDatabase(databasePath()),
 			clock: systemClock,
 			// Real delivery (web push) arrives in ticket 12.
-			notifier: { send: (intent) => console.info('[notify]', intent.kind, intent.recipientMemberId) }
+			notifier: { send: (intent) => console.info('[notify]', intent.kind, intent.recipientMemberId) },
+			mailer: createMailer()
 		});
 	}
 	return core;
 }
 
 export const LANGUAGE_COOKIE = 'lang';
+/** Holds the session token of a signed-in admin or captain. */
+export const SESSION_COOKIE = 'session';
 export const defaultClubSlug = () => process.env.DEFAULT_CLUB_SLUG ?? 'mladi-veterani';

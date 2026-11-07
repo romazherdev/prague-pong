@@ -67,6 +67,69 @@
 		margin: 0 auto;
 		padding: 1rem;
 	}
+	:global(input:not([type='hidden']), select, button, textarea) {
+		font: inherit;
+		min-height: 44px;
+		box-sizing: border-box;
+	}
+	:global(input:not([type='hidden'])) {
+		width: 100%;
+		padding: 0 0.75rem;
+	}
+	:global(.stack) {
+		display: grid;
+		gap: 0.75rem;
+		max-width: 24rem;
+	}
+	:global(.stack label) {
+		display: grid;
+		gap: 0.25rem;
+	}
+	:global(button.primary) {
+		background: #1d4ed8;
+		color: #fff;
+		border: none;
+		border-radius: 0.5rem;
+		padding: 0 1.25rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	:global(.error) {
+		color: #b91c1c;
+	}
+	:global(.notice) {
+		background: #e0f2fe;
+		border-radius: 0.5rem;
+		padding: 0.75rem 1rem;
+	}
+	:global(.hint) {
+		color: #555;
+		font-size: 0.95rem;
+	}
+	:global(.rows) {
+		list-style: none;
+		padding: 0;
+		display: grid;
+		gap: 0.5rem;
+	}
+	:global(.row) {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		gap: 0.5rem 0.75rem;
+		background: #fff;
+		border: 1px solid #e5e5e0;
+		border-radius: 0.5rem;
+		padding: 0.5rem 0.75rem;
+	}
+	:global(.row label) {
+		display: grid;
+		gap: 0.25rem;
+	}
+	:global(.ok) {
+		color: #15803d;
+		font-weight: 700;
+	}
 	.visually-hidden {
 		position: absolute;
 		width: 1px;

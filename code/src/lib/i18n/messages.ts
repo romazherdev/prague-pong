@@ -23,7 +23,28 @@ const cs = {
 	'match.notFound': 'Zápas nenalezen.',
 	'language.label': 'Jazyk',
 	'language.switch': 'Změnit',
-	'club.notFound': 'Klub nenalezen.'
+	'club.notFound': 'Klub nenalezen.',
+	'nav.calendar': 'Kalendář',
+	'nav.admin': 'Správa',
+	'nav.signIn': 'Přihlášení pro kapitány',
+	'nav.signOut': 'Odhlásit',
+	'signIn.title': 'Přihlášení',
+	'signIn.intro': 'Pro kapitány a správce klubu. Zadejte svůj e-mail a pošleme vám odkaz pro přihlášení.',
+	'signIn.email': 'E-mail',
+	'signIn.send': 'Poslat odkaz',
+	'signIn.sent': 'Pokud {email} patří kapitánovi nebo správci, právě jsme na něj poslali odkaz. Platí 15 minut.',
+	'signIn.invalidEmail': 'Zadejte platný e-mail.',
+	'signIn.confirm': 'Přihlásit se',
+	'signIn.expired': 'Tento odkaz už neplatí (vypršel nebo byl použit).',
+	'signIn.again': 'Poslat nový odkaz',
+	'admin.title': 'Správa klubu',
+	'admin.captains': 'Kapitáni družstev',
+	'admin.noCaptain': '— bez kapitána —',
+	'admin.save': 'Uložit',
+	'admin.captainHint': 'Kapitán se přihlašuje e-mailem, který má uložený u svého člena.',
+	'signIn.email.subject': 'Přihlášení do Prague Pong',
+	'signIn.email.body':
+		'Dobrý den,\n\npro přihlášení do Prague Pong otevřete tento odkaz:\n{link}\n\nOdkaz platí {minutes} minut a lze ho použít jen jednou. Pokud jste o přihlášení nežádali, e-mail ignorujte.'
 } as const;
 
 export type MessageKey = keyof typeof cs;
@@ -51,7 +72,28 @@ const en: Record<MessageKey, string> = {
 	'match.notFound': 'Match not found.',
 	'language.label': 'Language',
 	'language.switch': 'Change',
-	'club.notFound': 'Club not found.'
+	'club.notFound': 'Club not found.',
+	'nav.calendar': 'Calendar',
+	'nav.admin': 'Admin',
+	'nav.signIn': 'Captain sign-in',
+	'nav.signOut': 'Sign out',
+	'signIn.title': 'Sign in',
+	'signIn.intro': "For captains and club admins. Enter your email and we'll send you a sign-in link.",
+	'signIn.email': 'Email',
+	'signIn.send': 'Send link',
+	'signIn.sent': 'If {email} belongs to a captain or admin, we have just sent a link to it. It works for 15 minutes.',
+	'signIn.invalidEmail': 'Enter a valid email address.',
+	'signIn.confirm': 'Sign in',
+	'signIn.expired': 'This link no longer works (it expired or was already used).',
+	'signIn.again': 'Send a new link',
+	'admin.title': 'Club admin',
+	'admin.captains': 'Team captains',
+	'admin.noCaptain': '— no captain —',
+	'admin.save': 'Save',
+	'admin.captainHint': 'A captain signs in with the email saved on their member record.',
+	'signIn.email.subject': 'Sign in to Prague Pong',
+	'signIn.email.body':
+		'Hello,\n\nopen this link to sign in to Prague Pong:\n{link}\n\nThe link works for {minutes} minutes and only once. If you didn\'t ask to sign in, ignore this email.'
 };
 
 const dictionaries: Record<Locale, Record<MessageKey, string>> = { cs, en };

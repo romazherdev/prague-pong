@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] A setup command creates the first admin for a club (email address)
 - [ ] Request a sign-in link by email; the link is single-use and expires

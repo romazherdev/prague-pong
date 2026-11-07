@@ -55,6 +55,18 @@ export function seedBuilders(db: Database.Database) {
 				input.competition ?? null
 			);
 			return { id, ...input };
+		},
+		member(input: { clubId: string; name: string; email?: string; isAdmin?: boolean; active?: boolean }) {
+			const id = randomUUID();
+			db.prepare('INSERT INTO members (id, club_id, name, email, is_admin, active) VALUES (?, ?, ?, ?, ?, ?)').run(
+				id,
+				input.clubId,
+				input.name,
+				input.email?.toLowerCase() ?? null,
+				input.isAdmin ? 1 : 0,
+				input.active === false ? 0 : 1
+			);
+			return { id, ...input };
 		}
 	};
 }

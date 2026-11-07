@@ -40,6 +40,30 @@ const migrations: string[] = [
 	ALTER TABLE matches ADD COLUMN competition TEXT;
 	ALTER TABLE matches ADD COLUMN ends_at TEXT; -- ISO 8601, UTC
 	CREATE INDEX venues_address ON venues (lower(address));
+	`,
+	// Members, captains and magic-link sign-in (ticket 04). Secrets are stored only as SHA-256 hashes.
+	`
+	CREATE TABLE members (
+		id TEXT PRIMARY KEY,
+		club_id TEXT NOT NULL REFERENCES clubs(id),
+		name TEXT NOT NULL,
+		email TEXT, -- lower-case; only needed for admins and captains
+		is_admin INTEGER NOT NULL DEFAULT 0,
+		active INTEGER NOT NULL DEFAULT 1,
+		UNIQUE (club_id, email)
+	);
+	ALTER TABLE teams ADD COLUMN captain_member_id TEXT REFERENCES members(id);
+	CREATE TABLE sign_in_links (
+		token_hash TEXT PRIMARY KEY,
+		member_id TEXT NOT NULL REFERENCES members(id),
+		expires_at TEXT NOT NULL,
+		used_at TEXT
+	);
+	CREATE TABLE sessions (
+		token_hash TEXT PRIMARY KEY,
+		member_id TEXT NOT NULL REFERENCES members(id),
+		expires_at TEXT NOT NULL
+	);
 	`
 ];
 

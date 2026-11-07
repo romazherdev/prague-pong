@@ -1,5 +1,7 @@
 import type Database from 'better-sqlite3';
-import type { Clock, Notifier } from './ports';
+import type { Clock, Mailer, Notifier } from './ports';
+import { accessModule } from './access';
+import { membersModule } from './members';
 import { resolveLocale } from './locale';
 import { localDate, wallClockToUtc } from './time';
 import { randomUUID } from 'node:crypto';
@@ -89,7 +91,9 @@ export type Club = { id: string; name: string; slug: string; timeZone: string };
 
 export type ClubCore = ReturnType<typeof createClubCore>;
 
-export function createClubCore(deps: { db: Database.Database; clock: Clock; notifier: Notifier }) {
+export type CoreDeps = { db: Database.Database; clock: Clock; notifier: Notifier; mailer: Mailer };
+
+export function createClubCore(deps: CoreDeps) {
 	const { db, clock } = deps;
 
 	const clubTimeZone = (clubId: string) =>
@@ -97,6 +101,8 @@ export function createClubCore(deps: { db: Database.Database; clock: Clock; noti
 			?.time_zone;
 
 	return {
+		...accessModule(deps),
+		...membersModule(deps),
 		resolveLocale,
 
 		createClub(input: { name: string; slug: string; timeZone?: string }): Club {
