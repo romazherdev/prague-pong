@@ -36,12 +36,24 @@ export function seedBuilders(db: Database.Database) {
 			opponent: string;
 			isHome: boolean;
 			startsAt: string;
+			endsAt?: string;
+			competition?: string;
 		}) {
 			const id = randomUUID();
 			db.prepare(
-				`INSERT INTO matches (id, club_id, team_id, venue_id, opponent, is_home, starts_at)
-				 VALUES (?, ?, ?, ?, ?, ?, ?)`
-			).run(id, input.clubId, input.teamId, input.venueId, input.opponent, input.isHome ? 1 : 0, input.startsAt);
+				`INSERT INTO matches (id, club_id, team_id, venue_id, opponent, is_home, starts_at, ends_at, competition)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			).run(
+				id,
+				input.clubId,
+				input.teamId,
+				input.venueId,
+				input.opponent,
+				input.isHome ? 1 : 0,
+				input.startsAt,
+				input.endsAt ?? null,
+				input.competition ?? null
+			);
 			return { id, ...input };
 		}
 	};

@@ -4,14 +4,51 @@ import { resolveLocale } from './locale';
 import { localDate, wallClockToUtc } from './time';
 import { randomUUID } from 'node:crypto';
 
-export type UpcomingMatch = {
+/** A match as listed in the club calendar. */
+export type CalendarMatch = {
 	id: string;
-	team: { id: string; name: string };
+	team: Team;
 	opponent: string;
 	isHome: boolean;
 	venue: { name: string; address: string };
 	startsAt: string;
 };
+
+/** A match with all its details, for the match page. */
+export type MatchDetail = CalendarMatch & {
+	/** ISO 8601, UTC; null if the source didn't give an end time. */
+	endsAt: string | null;
+	/** League competition code, e.g. "6TMA"; null for matches not imported from STIS. */
+	competition: string | null;
+};
+
+type MatchRow = {
+	id: string;
+	opponent: string;
+	is_home: number;
+	starts_at: string;
+	ends_at: string | null;
+	competition: string | null;
+	team_id: string;
+	team_name: string;
+	venue_name: string;
+	venue_address: string;
+};
+
+const MATCH_SELECT = `SELECT m.id, m.opponent, m.is_home, m.starts_at, m.ends_at, m.competition,
+	       t.id AS team_id, t.name AS team_name, v.name AS venue_name, v.address AS venue_address
+	FROM matches m
+	JOIN teams t ON t.id = m.team_id
+	JOIN venues v ON v.id = m.venue_id`;
+
+const toCalendarMatch = (r: MatchRow): CalendarMatch => ({
+	id: r.id,
+	team: { id: r.team_id, name: r.team_name },
+	opponent: r.opponent,
+	isHome: r.is_home === 1,
+	venue: { name: r.venue_name, address: r.venue_address },
+	startsAt: r.starts_at
+});
 
 /** A league fixture as parsed from an external schedule (e.g. the STIS adapter), ready to import. */
 export type FixtureImport = {
@@ -35,6 +72,15 @@ export type ImportResult = {
 	unchanged: number;
 	/** Keys of fixtures that changed in the source but were left as they are (the default). */
 	changedNotApplied: string[];
+};
+
+export type Team = { id: string; name: string };
+
+export type MatchFilter = {
+	/** Only this team's matches. */
+	teamId?: string;
+	/** Also show matches played before today. */
+	includePast?: boolean;
 };
 
 export const DEFAULT_TIME_ZONE = 'Europe/Prague';
@@ -164,43 +210,35 @@ export function createClubCore(deps: { db: Database.Database; clock: Clock; noti
 			})();
 		},
 
-		/** Matches from today (in the club's time zone) onwards, soonest first. */
-		listUpcomingMatches(clubId: string): UpcomingMatch[] {
+		/** The club's league teams, by name. */
+		listTeams(clubId: string): Team[] {
+			return db.prepare('SELECT id, name FROM teams WHERE club_id = ? ORDER BY name').all(clubId) as Team[];
+		},
+
+		/**
+		 * The club calendar, soonest first. By default only matches from today (in the club's time zone)
+		 * onwards; `includePast` shows the whole season. `teamId` narrows it to one team.
+		 */
+		listMatches(clubId: string, filter: MatchFilter = {}): CalendarMatch[] {
 			const timeZone = clubTimeZone(clubId);
 			if (!timeZone) return [];
 			const today = localDate(clock.now(), timeZone);
 
 			const rows = db
-				.prepare(
-					`SELECT m.id, m.opponent, m.is_home, m.starts_at,
-					        t.id AS team_id, t.name AS team_name, v.name AS venue_name, v.address AS venue_address
-					 FROM matches m
-					 JOIN teams t ON t.id = m.team_id
-					 JOIN venues v ON v.id = m.venue_id
-					 WHERE m.club_id = ?
-					 ORDER BY m.starts_at`
-				)
-				.all(clubId) as {
-				id: string;
-				opponent: string;
-				is_home: number;
-				starts_at: string;
-				team_id: string;
-				team_name: string;
-				venue_name: string;
-				venue_address: string;
-			}[];
+				.prepare(`${MATCH_SELECT} WHERE m.club_id = @clubId AND (@teamId IS NULL OR m.team_id = @teamId) ORDER BY m.starts_at`)
+				.all({ clubId, teamId: filter.teamId ?? null }) as MatchRow[];
 
 			return rows
-				.filter((r) => localDate(new Date(r.starts_at), timeZone) >= today)
-				.map((r) => ({
-					id: r.id,
-					team: { id: r.team_id, name: r.team_name },
-					opponent: r.opponent,
-					isHome: r.is_home === 1,
-					venue: { name: r.venue_name, address: r.venue_address },
-					startsAt: r.starts_at
-				}));
+				.filter((r) => filter.includePast || localDate(new Date(r.starts_at), timeZone) >= today)
+				.map(toCalendarMatch);
+		},
+
+		/** One of the club's matches, past or upcoming; undefined if the club has no such match. */
+		getMatch(clubId: string, matchId: string): MatchDetail | undefined {
+			const row = db.prepare(`${MATCH_SELECT} WHERE m.club_id = ? AND m.id = ?`).get(clubId, matchId) as
+				| MatchRow
+				| undefined;
+			return row && { ...toCalendarMatch(row), endsAt: row.ends_at, competition: row.competition };
 		}
 	};
 }

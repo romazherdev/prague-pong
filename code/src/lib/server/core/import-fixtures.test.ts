@@ -41,7 +41,7 @@ describe('importSeasonFixtures', () => {
 		]);
 
 		expect(result).toEqual({ added: 2, updated: 0, unchanged: 0, changedNotApplied: [] });
-		const matches = core.listUpcomingMatches(club.id);
+		const matches = core.listMatches(club.id);
 		expect(matches.map((m) => [m.team.name, m.opponent, m.isHome, m.venue.name])).toEqual([
 			['A', 'TTC Praha F', true, 'Herna SC ČVUT Juliska'],
 			['D', 'SK Start Praha D', false, 'Střelecký ostrov']
@@ -56,7 +56,7 @@ describe('importSeasonFixtures', () => {
 			fixture({ fixtureKey: 'summer', startsLocal: '2027-04-14T19:00' }) // CEST, UTC+2
 		]);
 
-		expect(core.listUpcomingMatches(club.id).map((m) => m.startsAt)).toEqual([
+		expect(core.listMatches(club.id).map((m) => m.startsAt)).toEqual([
 			'2026-11-18T18:00:00Z',
 			'2027-04-14T17:00:00Z'
 		]);
@@ -70,7 +70,7 @@ describe('importSeasonFixtures', () => {
 		const again = core.importSeasonFixtures(club.id, season);
 
 		expect(again).toEqual({ added: 0, updated: 0, unchanged: 2, changedNotApplied: [] });
-		expect(core.listUpcomingMatches(club.id)).toHaveLength(2);
+		expect(core.listMatches(club.id)).toHaveLength(2);
 	});
 
 	it('reports a fixture moved in STIS without applying it, so answers are never silently kept for a new date', () => {
@@ -87,7 +87,7 @@ describe('importSeasonFixtures', () => {
 			unchanged: 0,
 			changedNotApplied: ['5TMB|TJ Mladí Veteráni - VSK ČVUT A|TTC Praha F']
 		});
-		expect(core.listUpcomingMatches(club.id).map((m) => m.startsAt)).toEqual(['2026-11-18T18:00:00Z']);
+		expect(core.listMatches(club.id).map((m) => m.startsAt)).toEqual(['2026-11-18T18:00:00Z']);
 	});
 
 	it('applies moved fixtures when asked to, instead of duplicating them', () => {
@@ -101,7 +101,7 @@ describe('importSeasonFixtures', () => {
 		);
 
 		expect(result).toMatchObject({ added: 0, updated: 1, changedNotApplied: [] });
-		expect(core.listUpcomingMatches(club.id).map((m) => m.startsAt)).toEqual(['2026-11-25T18:00:00Z']);
+		expect(core.listMatches(club.id).map((m) => m.startsAt)).toEqual(['2026-11-25T18:00:00Z']);
 	});
 
 	it("keeps each club's fixtures separate even with the same key", () => {
@@ -111,8 +111,8 @@ describe('importSeasonFixtures', () => {
 		core.importSeasonFixtures(club.id, [fixture({})]);
 		core.importSeasonFixtures(other.id, [fixture({})]);
 
-		expect(core.listUpcomingMatches(club.id)).toHaveLength(1);
-		expect(core.listUpcomingMatches(other.id)).toHaveLength(1);
+		expect(core.listMatches(club.id)).toHaveLength(1);
+		expect(core.listMatches(other.id)).toHaveLength(1);
 	});
 
 	it('imports nothing if any fixture is invalid', () => {
@@ -121,6 +121,6 @@ describe('importSeasonFixtures', () => {
 		expect(() =>
 			core.importSeasonFixtures(club.id, [fixture({}), fixture({ fixtureKey: 'bad', startsLocal: 'not a date' })])
 		).toThrow();
-		expect(core.listUpcomingMatches(club.id)).toEqual([]);
+		expect(core.listMatches(club.id)).toEqual([]);
 	});
 });
