@@ -22,6 +22,7 @@ A club organiser for table tennis clubs, starting with Mladí Veteráni (Prague)
 - **Substitute** — a line-up player from a different team than the match's team. Derived, not stored.
 - **Spot open** — a line-up slot whose player changed their answer to no. Never filled automatically.
 - **Clash** — an evening problem: a player in two line-ups, home matches needing more tables than the club has, or too few tables left for training.
+- **Roster entry** — a player on a team's STIS roster (Czech: *soupiska*). The admin confirms which member each one is; that links the member to the STIS player and puts them on the team (ADR 0005).
 - **STIS** — the Czech table tennis federation's results system; source of fixtures (CSV export) and team rosters (club page).
 
 ## Avoid

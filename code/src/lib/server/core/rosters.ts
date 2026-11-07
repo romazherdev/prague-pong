@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 import { accessRules, NotFoundError, type Actor } from './access';
 import { firstNameFirst, nameKey } from './names';
-import { newSecret } from './secrets';
+import { insertMember } from './members';
 
 /** One team's roster as parsed from STIS (e.g. by the STIS adapter), ready to import. */
 export type RosterImport = {
@@ -19,7 +19,10 @@ export type RosterReviewEntry = {
 	stisPlayerId: string | null;
 	/** Who the player is, once the admin has confirmed it. */
 	confirmedMember: { id: string; name: string } | null;
-	/** The one active member whose name matches, if exactly one does and nothing is confirmed yet. */
+	/**
+	 * The one active member whose name matches, if exactly one does, nothing is confirmed for this player yet,
+	 * and that member isn't confirmed for another player.
+	 */
 	suggestedMember: { id: string; name: string } | null;
 };
 
@@ -31,9 +34,14 @@ export function rostersModule(deps: { db: Database.Database }) {
 		/**
 		 * Stores the players on the club's STIS rosters for the admin to confirm. Players are recognised by STIS
 		 * player id (or team + name without one), so importing again adds nothing and keeps confirmed links;
-		 * a player who moved team is moved, and so is their confirmed member. All or nothing. Admins only.
+		 * a changed spelling is updated, and a player who moved team is moved, with their confirmed member
+		 * (ADR 0005). All or nothing. Admins only.
 		 */
-		importRosters(actor: Actor | undefined, clubId: string, rosters: RosterImport[]): { added: number; unchanged: number } {
+		importRosters(
+			actor: Actor | undefined,
+			clubId: string,
+			rosters: RosterImport[]
+		): { added: number; moved: number; unchanged: number } {
 			rules.requireAdmin(actor, clubId);
 			const teamId = (name: string) =>
 				(db.prepare('SELECT id FROM teams WHERE club_id = ? AND name = ?').get(clubId, name) as { id: string } | undefined)?.id;
@@ -42,11 +50,12 @@ export function rostersModule(deps: { db: Database.Database }) {
 				`INSERT INTO roster_entries (id, club_id, entry_key, team_id, player_name, stis_player_id)
 				 VALUES (?, ?, ?, ?, ?, ?)`
 			);
-			const move = db.prepare('UPDATE roster_entries SET team_id = ?, player_name = ? WHERE id = ?');
-			const moveMember = db.prepare('UPDATE members SET team_id = ? WHERE id = ?');
+			const update = db.prepare('UPDATE roster_entries SET team_id = ?, player_name = ? WHERE id = ?');
+			// STIS decides a confirmed player's team (ADR 0005); members who left the club stay as they were.
+			const moveMember = db.prepare('UPDATE members SET team_id = ? WHERE id = ? AND active = 1');
 
 			return db.transaction(() => {
-				const result = { added: 0, unchanged: 0 };
+				const result = { added: 0, moved: 0, unchanged: 0 };
 				for (const roster of rosters) {
 					const team = teamId(roster.teamName);
 					if (!team) throw new NotFoundError(`The club has no team ${roster.teamName}`);
@@ -58,11 +67,13 @@ export function rostersModule(deps: { db: Database.Database }) {
 							insert.run(randomUUID(), clubId, key, team, name, player.stisPlayerId ?? null);
 							result.added++;
 						} else {
+							update.run(team, name, existing.id);
 							if (existing.team_id !== team) {
-								move.run(team, name, existing.id);
 								if (existing.member_id) moveMember.run(team, existing.member_id);
+								result.moved++;
+							} else {
+								result.unchanged++;
 							}
-							result.unchanged++;
 						}
 					}
 				}
@@ -91,11 +102,16 @@ export function rostersModule(deps: { db: Database.Database }) {
 				id: string;
 				name: string;
 			}[];
-			const byKey = Map.groupBy(active, (m) => nameKey(m.name));
+			const confirmed = new Set(rows.map((r) => r.member_id).filter(Boolean));
+			const byKey = Map.groupBy(
+				active.filter((m) => !confirmed.has(m.id)),
+				(m) => nameKey(m.name)
+			);
 
 			return rows
 				.map((r) => {
 					const candidates = byKey.get(nameKey(r.player_name)) ?? [];
+					// Two members with the same name: no guess; the admin picks.
 					return {
 						id: r.id,
 						teamName: r.team_name,
@@ -120,8 +136,10 @@ export function rostersModule(deps: { db: Database.Database }) {
 		): { memberId: string } {
 			rules.requireAdmin(actor, clubId);
 			const entry = db
-				.prepare('SELECT team_id, player_name, stis_player_id FROM roster_entries WHERE id = ? AND club_id = ?')
-				.get(entryId, clubId) as { team_id: string; player_name: string; stis_player_id: string | null } | undefined;
+				.prepare('SELECT team_id, player_name, stis_player_id, member_id FROM roster_entries WHERE id = ? AND club_id = ?')
+				.get(entryId, clubId) as
+				| { team_id: string; player_name: string; stis_player_id: string | null; member_id: string | null }
+				| undefined;
 			if (!entry) throw new NotFoundError('No such roster entry');
 
 			return db.transaction(() => {
@@ -130,31 +148,25 @@ export function rostersModule(deps: { db: Database.Database }) {
 					if (!rules.isActiveMemberOf(who.memberId, clubId)) throw new NotFoundError('No such active member in this club');
 					memberId = who.memberId;
 				} else {
-					memberId = randomUUID();
-					db.prepare('INSERT INTO members (id, club_id, name, link_token) VALUES (?, ?, ?, ?)').run(
-						memberId,
-						clubId,
-						firstNameFirst(entry.player_name),
-						newSecret()
+					memberId = insertMember(db, clubId, { name: firstNameFirst(entry.player_name) }).id;
+				}
+				// Re-pointing the player from another member: that member is no longer this STIS player.
+				if (entry.member_id && entry.member_id !== memberId && entry.stis_player_id) {
+					db.prepare('UPDATE members SET stis_player_id = NULL WHERE id = ? AND stis_player_id = ?').run(
+						entry.member_id,
+						entry.stis_player_id
 					);
 				}
 				// A member is one STIS player: confirming them here undoes any earlier confirmation elsewhere.
 				db.prepare('UPDATE roster_entries SET member_id = NULL WHERE member_id = ? AND id != ?').run(memberId, entryId);
 				db.prepare('UPDATE roster_entries SET member_id = ? WHERE id = ?').run(memberId, entryId);
-				db.prepare('UPDATE members SET team_id = ?, stis_player_id = ? WHERE id = ?').run(entry.team_id, entry.stis_player_id, memberId);
+				db.prepare('UPDATE members SET team_id = ?, stis_player_id = coalesce(?, stis_player_id) WHERE id = ?').run(
+					entry.team_id,
+					entry.stis_player_id,
+					memberId
+				);
 				return { memberId };
 			})();
-		},
-
-		/** Puts a member on one of the club's teams, or on none (`null`: e.g. training only). Admins only. */
-		setMemberTeam(actor: Actor | undefined, clubId: string, memberId: string, teamId: string | null): void {
-			rules.requireAdmin(actor, clubId);
-			const m = rules.member(memberId);
-			if (!m || m.club_id !== clubId) throw new NotFoundError('No such member in this club');
-			if (teamId && !db.prepare('SELECT 1 FROM teams WHERE id = ? AND club_id = ?').get(teamId, clubId)) {
-				throw new NotFoundError('No such team in this club');
-			}
-			db.prepare('UPDATE members SET team_id = ? WHERE id = ?').run(teamId, memberId);
 		}
 	};
 }

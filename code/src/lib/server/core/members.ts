@@ -47,6 +47,30 @@ const toSummary = (r: MemberRow): MemberSummary => ({
 	isAdmin: r.is_admin === 1,
 	team: r.team_id ? { id: r.team_id, name: r.team_name! } : null
 });
+/**
+ * Adds an active member with a new personal link, after checking the name and email. Shared by every way a
+ * member gets created (by hand, from a roster).
+ */
+export function insertMember(db: Database.Database, clubId: string, input: { name: string; email?: string | null }): MemberSummary {
+	const { name, email } = validMemberDetails(db, clubId, input);
+	const id = randomUUID();
+	db.prepare('INSERT INTO members (id, club_id, name, email, link_token) VALUES (?, ?, ?, ?, ?)').run(id, clubId, name, email, newSecret());
+	return { id, name, email, isAdmin: false, team: null };
+}
+
+/** Trimmed name and normalised email, checked: a name is required, and an email belongs to one member. */
+function validMemberDetails(db: Database.Database, clubId: string, input: { name: string; email?: string | null }, memberId?: string) {
+	const name = input.name.trim().replace(/\s+/g, ' ');
+	if (!name) throw new InvalidInputError('nameRequired');
+	const email = input.email?.trim() ? normaliseEmail(input.email) : null;
+	if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new InvalidInputError('emailInvalid');
+	if (email) {
+		const taken = db.prepare('SELECT id FROM members WHERE club_id = ? AND email = ? AND id IS NOT ?').get(clubId, email, memberId ?? null);
+		if (taken) throw new InvalidInputError('emailTaken');
+	}
+	return { name, email };
+}
+
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'cs');
 
 export function membersModule(deps: { db: Database.Database; clock: Clock; calendar: ReturnType<typeof calendarModule> }) {
@@ -65,21 +89,6 @@ export function membersModule(deps: { db: Database.Database; clock: Clock; calen
 		const m = rules.member(memberId);
 		if (!m || m.club_id !== clubId) throw new NotFoundError('No such member in this club');
 		return m;
-	}
-
-	/** Trimmed name and normalised email, checked: a name is required, and an email belongs to one member. */
-	function validDetails(clubId: string, input: { name: string; email?: string | null }, memberId?: string) {
-		const name = input.name.trim().replace(/\s+/g, ' ');
-		if (!name) throw new InvalidInputError('nameRequired');
-		const email = input.email?.trim() ? normaliseEmail(input.email) : null;
-		if (email && !/^\S+@\S+\.\S+$/.test(email)) throw new InvalidInputError('emailInvalid');
-		if (email) {
-			const taken = db
-				.prepare('SELECT id FROM members WHERE club_id = ? AND email = ? AND id IS NOT ?')
-				.get(clubId, email, memberId ?? null);
-			if (taken) throw new InvalidInputError('emailTaken');
-		}
-		return { name, email };
 	}
 
 	/** The member behind a device's personal-link cookie or, failing that, its session. */
@@ -108,23 +117,14 @@ export function membersModule(deps: { db: Database.Database; clock: Clock; calen
 		/** Adds a member with a new personal link. Email is optional (only captains and admins need one). Admins only. */
 		addMember(actor: Actor | undefined, clubId: string, input: { name: string; email?: string | null }): MemberSummary {
 			rules.requireAdmin(actor, clubId);
-			const { name, email } = validDetails(clubId, input);
-			const id = randomUUID();
-			db.prepare('INSERT INTO members (id, club_id, name, email, link_token) VALUES (?, ?, ?, ?, ?)').run(
-				id,
-				clubId,
-				name,
-				email,
-				newSecret()
-			);
-			return { id, name, email, isAdmin: false, team: null };
+			return insertMember(db, clubId, input);
 		},
 
 		/** Changes a member's name and email. Admins only. */
 		updateMember(actor: Actor | undefined, clubId: string, memberId: string, input: { name: string; email?: string | null }): void {
 			rules.requireAdmin(actor, clubId);
 			memberOfClub(clubId, memberId);
-			const { name, email } = validDetails(clubId, input, memberId);
+			const { name, email } = validMemberDetails(db, clubId, input, memberId);
 			db.prepare('UPDATE members SET name = ?, email = ? WHERE id = ?').run(name, email, memberId);
 		},
 
@@ -221,6 +221,16 @@ export function membersModule(deps: { db: Database.Database; clock: Clock; calen
 		saveLanguageForDevice(device: DeviceIdentity, locale: Locale): void {
 			const id = deviceMemberId(device);
 			if (id) db.prepare('UPDATE members SET language = ? WHERE id = ?').run(locale, id);
+		},
+
+		/** Puts a member on one of the club's teams, or on none (`null`: e.g. training only). Admins only. */
+		setMemberTeam(actor: Actor | undefined, clubId: string, memberId: string, teamId: string | null): void {
+			rules.requireAdmin(actor, clubId);
+			memberOfClub(clubId, memberId);
+			if (teamId && !db.prepare('SELECT 1 FROM teams WHERE id = ? AND club_id = ?').get(teamId, clubId)) {
+				throw new NotFoundError('No such team in this club');
+			}
+			db.prepare('UPDATE members SET team_id = ? WHERE id = ?').run(teamId, memberId);
 		},
 
 		/** One member of the club, active or not, for the admin's member page. Admins only. */

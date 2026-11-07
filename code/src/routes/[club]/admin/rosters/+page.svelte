@@ -22,7 +22,8 @@
 					<input type="hidden" name="entryId" value={entry.id} />
 					<label>
 						<span><strong>{entry.playerName}</strong> · {t('match.team', { team: entry.teamName })}</span>
-						<select name="who" value={entry.suggestedMember?.id ?? 'new'}>
+						<select name="who" required value={entry.suggestedMember?.id ?? ''}>
+							<option value="" disabled>{t('rosters.choose')}</option>
 							<option value="new">{t('rosters.newMember')}</option>
 							{#each data.members as m (m.id)}
 								<option value={m.id}>{m.name}{m.id === entry.suggestedMember?.id ? ` (${t('rosters.suggested')})` : ''}</option>

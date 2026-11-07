@@ -28,7 +28,7 @@ describe('rosters: import and suggestions', () => {
 		const result = core.importRosters(asAdmin, club.id, rosters);
 		const review = core.listRosterReview(asAdmin, club.id);
 
-		expect(result).toEqual({ added: 3, unchanged: 0 });
+		expect(result).toEqual({ added: 3, moved: 0, unchanged: 0 });
 		expect(review.map((e) => [e.teamName, e.playerName, e.suggestedMember?.id ?? null, e.confirmedMember])).toEqual([
 			['A', 'Dvořáková Eva', eva.id, null],
 			['A', 'Novák Petr', petr.id, null],
@@ -100,7 +100,7 @@ describe('rosters: confirming', () => {
 
 		const again = core.importRosters(asAdmin, club.id, rosters);
 
-		expect(again).toEqual({ added: 0, unchanged: 3 });
+		expect(again).toEqual({ added: 0, moved: 0, unchanged: 3 });
 		expect(core.listRosterReview(asAdmin, club.id)).toHaveLength(3);
 		expect(core.listRosterReview(asAdmin, club.id).find((e) => e.id === entry.id)?.confirmedMember?.id).toBe(petr.id);
 		expect(core.listMembers(asAdmin, club.id).filter((m) => m.name === 'Petr Novák')).toHaveLength(1);
@@ -113,9 +113,66 @@ describe('rosters: confirming', () => {
 		const entry = core.listRosterReview(asAdmin, club.id).find((e) => e.playerName === 'Novák Petr')!;
 		core.confirmRosterEntry(asAdmin, club.id, entry.id, { memberId: petr.id });
 
-		core.importRosters(asAdmin, club.id, [{ teamName: 'B', players: [{ name: 'Novák Petr', stisPlayerId: '1001' }] }]);
+		const result = core.importRosters(asAdmin, club.id, [{ teamName: 'B', players: [{ name: 'Novák Petr', stisPlayerId: '1001' }] }]);
 
+		expect(result).toEqual({ added: 0, moved: 1, unchanged: 0 });
 		expect(core.getMember(asAdmin, club.id, petr.id).team?.id).toBe(teamB.id);
+	});
+
+	it('a re-import updates a changed spelling, and leaves a deactivated member where they are', () => {
+		const { core, club, asAdmin, seed, teamA } = setup();
+		const petr = seed.member({ clubId: club.id, name: 'Petr Novák' });
+		core.importRosters(asAdmin, club.id, rosters);
+		const entry = core.listRosterReview(asAdmin, club.id).find((e) => e.playerName === 'Novák Petr')!;
+		core.confirmRosterEntry(asAdmin, club.id, entry.id, { memberId: petr.id });
+		core.deactivateMember(asAdmin, club.id, petr.id);
+
+		core.importRosters(asAdmin, club.id, [{ teamName: 'B', players: [{ name: 'Novák  Petr Jr.', stisPlayerId: '1001' }] }]);
+
+		expect(core.listRosterReview(asAdmin, club.id).find((e) => e.id === entry.id)?.playerName).toBe('Novák Petr Jr.');
+		expect(core.getMember(asAdmin, club.id, petr.id).team?.id).toBe(teamA.id);
+	});
+
+	it('re-pointing a confirmed player to another member moves the STIS link: two members never share one', () => {
+		const { core, club, asAdmin, seed } = setup();
+		const wrong = seed.member({ clubId: club.id, name: 'Petr Novák' });
+		const right = seed.member({ clubId: club.id, name: 'Petr Novák st.' });
+		core.importRosters(asAdmin, club.id, rosters);
+		const entry = core.listRosterReview(asAdmin, club.id).find((e) => e.playerName === 'Novák Petr')!;
+		core.confirmRosterEntry(asAdmin, club.id, entry.id, { memberId: wrong.id });
+
+		core.confirmRosterEntry(asAdmin, club.id, entry.id, { memberId: right.id });
+
+		expect(core.getMember(asAdmin, club.id, wrong.id).stisPlayerId).toBeNull();
+		expect(core.getMember(asAdmin, club.id, right.id).stisPlayerId).toBe('1001');
+	});
+});
+
+describe('rosters: edge cases', () => {
+	it("doesn't suggest a member who is already confirmed for another player", () => {
+		const { core, club, asAdmin, seed } = setup();
+		const petr = seed.member({ clubId: club.id, name: 'Petr Novák' });
+		core.importRosters(asAdmin, club.id, [
+			{ teamName: 'A', players: [{ name: 'Novák Petr', stisPlayerId: '1001' }] },
+			{ teamName: 'B', players: [{ name: 'Novák Petr', stisPlayerId: '2001' }] }
+		]);
+		const [first] = core.listRosterReview(asAdmin, club.id);
+		core.confirmRosterEntry(asAdmin, club.id, first.id, { memberId: petr.id });
+
+		expect(core.listRosterReview(asAdmin, club.id)[1].suggestedMember).toBeNull();
+	});
+
+	it("keeps a member's STIS link when confirmed for a roster entry without an id", () => {
+		const { core, club, asAdmin, seed } = setup();
+		const petr = seed.member({ clubId: club.id, name: 'Petr Novák' });
+		core.importRosters(asAdmin, club.id, [{ teamName: 'A', players: [{ name: 'Novák Petr', stisPlayerId: '1001' }] }]);
+		core.confirmRosterEntry(asAdmin, club.id, core.listRosterReview(asAdmin, club.id)[0].id, { memberId: petr.id });
+		core.importRosters(asAdmin, club.id, [{ teamName: 'B', players: [{ name: 'Novák Petr' }] }]);
+		const withoutId = core.listRosterReview(asAdmin, club.id).find((e) => e.stisPlayerId === null)!;
+
+		core.confirmRosterEntry(asAdmin, club.id, withoutId.id, { memberId: petr.id });
+
+		expect(core.getMember(asAdmin, club.id, petr.id)).toMatchObject({ stisPlayerId: '1001', team: { name: 'B' } });
 	});
 });
 

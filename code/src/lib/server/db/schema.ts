@@ -88,6 +88,7 @@ const migrations: string[] = [
 		member_id TEXT REFERENCES members(id),
 		UNIQUE (club_id, entry_key)
 	);
+	CREATE UNIQUE INDEX members_stis_player ON members (club_id, stis_player_id);
 	`
 ];
 
