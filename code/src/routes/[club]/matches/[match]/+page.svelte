@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
 	import { mapLinks } from '#lib/maps.js';
 	import { formatClockTime, formatMatchDay, translator } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
@@ -21,7 +22,7 @@
 	<span class="versus">{t('match.versus', { opponent: match.opponent })}</span>
 </h1>
 <p>
-	<span class="badge" class:home={match.isHome}>{match.isHome ? t('match.home') : t('match.away')}</span>
+	<HomeAwayBadge isHome={match.isHome} locale={data.locale} />
 </p>
 
 <dl>
@@ -62,15 +63,6 @@
 		display: block;
 		font-weight: 400;
 		font-size: 1.25rem;
-	}
-	.badge {
-		display: inline-block;
-		padding: 0 0.75rem;
-		border-radius: 999px;
-		background: #eee;
-	}
-	.badge.home {
-		background: #dff3e4;
 	}
 	dl {
 		background: #fff;

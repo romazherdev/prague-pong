@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 /** A match as listed in the club calendar. */
 export type CalendarMatch = {
 	id: string;
-	team: { id: string; name: string };
+	team: Team;
 	opponent: string;
 	isHome: boolean;
 	venue: { name: string; address: string };
