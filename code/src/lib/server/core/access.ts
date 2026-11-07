@@ -33,6 +33,8 @@ export type TeamWithCaptain = { id: string; name: string; captain: { id: string;
 
 export const SIGN_IN_LINK_MINUTES = 15;
 export const SESSION_DAYS = 60;
+/** At most this many sign-in links per member are live at once (a link lives SIGN_IN_LINK_MINUTES). */
+export const MAX_LIVE_SIGN_IN_LINKS = 3;
 
 type MemberRow = { id: string; club_id: string; name: string; is_admin: number; active: number };
 
@@ -43,11 +45,15 @@ export function accessRules(db: Database.Database) {
 	const member = (id: string) =>
 		db.prepare('SELECT id, club_id, name, is_admin, active FROM members WHERE id = ?').get(id) as MemberRow | undefined;
 
+	const isActiveMemberOf = (memberId: string, clubId: string) => {
+		const m = member(memberId);
+		return !!m && m.club_id === clubId && m.active === 1;
+	};
+
 	/** The active member behind `actor` in `clubId`, or ForbiddenError. */
 	function requireMember(actor: Actor | undefined, clubId: string): MemberRow {
-		const m = actor && member(actor.memberId);
-		if (!m || m.club_id !== clubId || !m.active) throw new ForbiddenError('Not a member of this club');
-		return m;
+		if (!actor || !isActiveMemberOf(actor.memberId, clubId)) throw new ForbiddenError('Not a member of this club');
+		return member(actor.memberId)!;
 	}
 
 	function isAdmin(actor: Actor | undefined, clubId: string): boolean {
@@ -72,7 +78,7 @@ export function accessRules(db: Database.Database) {
 		return m;
 	}
 
-	return { member, requireMember, isAdmin, requireAdmin, requireCaptainOf };
+	return { member, isActiveMemberOf, requireMember, isAdmin, requireAdmin, requireCaptainOf };
 }
 
 export function accessModule(deps: { db: Database.Database; clock: Clock; mailer: Mailer }) {
@@ -83,7 +89,7 @@ export function accessModule(deps: { db: Database.Database; clock: Clock; mailer
 	const club = (clubId: string) =>
 		db.prepare('SELECT slug FROM clubs WHERE id = ?').get(clubId) as { slug: string } | undefined;
 
-	const captainOf = (memberId: string) =>
+	const teamsCaptainedBy = (memberId: string) =>
 		db.prepare('SELECT id, name FROM teams WHERE captain_member_id = ? ORDER BY name').all(memberId) as {
 			id: string;
 			name: string;
@@ -116,7 +122,8 @@ export function accessModule(deps: { db: Database.Database; clock: Clock; mailer
 
 		/**
 		 * Emails a single-use sign-in link to an active admin or captain with this email. Does nothing for any
-		 * other address, and says nothing either way, so the form doesn't reveal who has an account.
+		 * other address, or when the member already has MAX_LIVE_SIGN_IN_LINKS live links. Callers must answer
+		 * the same way whatever happens, so the form doesn't reveal who has an account.
 		 */
 		async requestSignIn(clubId: string, email: string, opts: { origin: string; locale: Locale }): Promise<void> {
 			const c = club(clubId);
@@ -128,6 +135,10 @@ export function accessModule(deps: { db: Database.Database; clock: Clock; mailer
 				)
 				.get(clubId, normaliseEmail(email)) as { id: string; email: string } | undefined;
 			if (!c || !m) return;
+			const live = db
+				.prepare('SELECT count(*) AS n FROM sign_in_links WHERE member_id = ? AND expires_at > ?')
+				.get(m.id, iso(now())) as { n: number };
+			if (live.n >= MAX_LIVE_SIGN_IN_LINKS) return;
 
 			const token = newSecret();
 			const expires = new Date(now().getTime() + SIGN_IN_LINK_MINUTES * 60_000);
@@ -183,7 +194,7 @@ export function accessModule(deps: { db: Database.Database; clock: Clock; mailer
 				actor: { via: 'session', memberId: row.id },
 				name: row.name,
 				isAdmin: row.is_admin === 1,
-				captainOf: captainOf(row.id)
+				captainOf: teamsCaptainedBy(row.id)
 			};
 		},
 
@@ -196,9 +207,8 @@ export function accessModule(deps: { db: Database.Database; clock: Clock; mailer
 			rules.requireAdmin(actor, clubId);
 			const team = db.prepare('SELECT id FROM teams WHERE id = ? AND club_id = ?').get(teamId, clubId);
 			if (!team) throw new NotFoundError('No such team in this club');
-			if (memberId !== null) {
-				const m = rules.member(memberId);
-				if (!m || m.club_id !== clubId || !m.active) throw new NotFoundError('No such active member in this club');
+			if (memberId !== null && !rules.isActiveMemberOf(memberId, clubId)) {
+				throw new NotFoundError('No such active member in this club');
 			}
 			db.prepare('UPDATE teams SET captain_member_id = ? WHERE id = ?').run(memberId, teamId);
 		},

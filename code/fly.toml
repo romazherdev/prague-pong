@@ -7,6 +7,8 @@ primary_region = "fra"
 [env]
   DATABASE_PATH = "/data/prague-pong.db"
   DEFAULT_CLUB_SLUG = "mladi-veterani"
+  # Public URL; sign-in links are built from it. Change it if you use another app name or a custom domain.
+  ORIGIN = "https://prague-pong.fly.dev"
 
 [[mounts]]
   source = "prague_pong_data"

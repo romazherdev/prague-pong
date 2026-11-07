@@ -10,22 +10,22 @@ export function clubRequest(event: { params: { club?: string }; cookies: Cookies
 	const club = core.findClubBySlug(event.params.club ?? '');
 	if (!club) error(404, translator(event.locals.locale)('club.notFound'));
 	const signedIn = core.whoIsSignedIn(club.id, event.cookies.get(SESSION_COOKIE));
-	return { core, club, signedIn, actor: signedIn?.actor };
+	return { core, club, signedIn, actor: signedIn?.actor, locale: event.locals.locale };
 }
 
 /**
  * Runs a core call and turns its refusals into HTTP: no session → the sign-in page,
  * not allowed → 403, unknown record → 404.
  */
-export function guarded<T>(req: { club: { slug: string }; signedIn: unknown }, fn: () => T): T {
+export function guarded<T>(req: { club: { slug: string }; signedIn: unknown; locale: Locale }, fn: () => T): T {
 	try {
 		return fn();
 	} catch (e) {
 		if (e instanceof ForbiddenError) {
 			if (!req.signedIn) redirect(303, `/${req.club.slug}/sign-in`);
-			error(403, e.message);
+			error(403, translator(req.locale)('error.forbidden'));
 		}
-		if (e instanceof NotFoundError) error(404, e.message);
+		if (e instanceof NotFoundError) error(404, translator(req.locale)('error.notFound'));
 		throw e;
 	}
 }

@@ -9,6 +9,9 @@ A club organiser for table tennis clubs, starting with Mladí Veteráni (Prague)
 - **Team** — one of a club's league teams (A–D), with a roster of members. Czech: *družstvo*.
 - **Member** — a person in the club: role (member, captain of a team, admin), language preference, optional link to a STIS player, active/inactive.
 - **Captain** — a member who builds their team's line-ups. **Admin** — manages members, teams, schedule and settings, and can act as captain for any team.
+- **Sign-in link** — a single-use emailed link (magic link) that starts a **session** for an admin or captain. Captains and admins need an email on their member record for it.
+- **Session** — a signed-in admin or captain on one device (cookie). Admin and captain powers need a session; a personal link never gives them.
+- **Actor** — who is asking the club core to do something: a session or a personal link, plus the member. The core checks permissions from it (ADR 0003).
 - **Personal link** — a member's private URL carrying a secret token; identifies them without a login and only ever allows member actions. Regenerating it invalidates the old one. Never posted in group chats.
 - **Event** — anything members answer for. Two kinds:
   - **Match** — a league fixture (Czech: *utkání*): team, opponent, home or away, venue, start and end time, fixture key.

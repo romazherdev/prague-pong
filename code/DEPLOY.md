@@ -9,7 +9,7 @@ The app is one Node process (SvelteKit + adapter-node) with one SQLite file. Run
 | `DATABASE_PATH` | `data/prague-pong.db` | SQLite file; created and migrated on start |
 | `DEFAULT_CLUB_SLUG` | `mladi-veterani` | Club shown at `/` |
 | `PORT` | `3000` | HTTP port |
-| `ORIGIN` | (from request) | Public URL, e.g. `https://pong.example`; set it behind a proxy so sign-in links point to the right host |
+| `ORIGIN` | — (**required in production**) | Public URL, e.g. `https://pong.example`. Sign-in links are built from it, never from the request, so a forged Host header can't redirect them. Set in `fly.toml`; on a VPS set it in the systemd unit |
 | `RESEND_API_KEY` | — | Sends sign-in emails through [Resend](https://resend.com). Without it, emails are printed to the server log |
 | `MAIL_FROM` | — | Sender for sign-in emails, e.g. `Prague Pong <noreply@pong.example>` (domain verified in Resend) |
 

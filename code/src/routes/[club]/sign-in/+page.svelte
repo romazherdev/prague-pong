@@ -9,7 +9,7 @@
 <h1>{t('signIn.title')}</h1>
 
 {#if form?.sent}
-	<p class="notice">{t('signIn.sent', { email: form.email })}</p>
+	<p class="notice">{t('signIn.sent', { email: form.email, minutes: String(form.minutes) })}</p>
 {:else}
 	<p>{t('signIn.intro')}</p>
 	<form method="POST" class="stack">

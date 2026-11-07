@@ -50,6 +50,16 @@ describe('requestSignIn', () => {
 		expect(mailer.sent).toEqual([]);
 	});
 
+	it('sends at most 3 links per member in 15 minutes, so the form cannot flood an inbox', async () => {
+		const { core, club, clock, mailer } = setup();
+		for (let i = 0; i < 5; i++) await core.requestSignIn(club.id, 'jana@example.cz', { origin: ORIGIN, locale: 'cs' });
+		expect(mailer.sent).toHaveLength(3);
+
+		clock.set('2026-11-10T14:15:01Z');
+		await core.requestSignIn(club.id, 'jana@example.cz', { origin: ORIGIN, locale: 'cs' });
+		expect(mailer.sent).toHaveLength(4);
+	});
+
 	it('writes the email in the language the link was requested in', () => {
 		const { core, club, mailer } = setup();
 
@@ -124,16 +134,21 @@ describe('sessions', () => {
 		});
 	});
 
-	it('ends at sign-out and after 60 days', () => {
-		const { core, club, clock, session } = signedIn();
-		const second = signedIn();
+	it('ends at sign-out', () => {
+		const { core, club, session } = signedIn();
 
 		core.signOut(session.sessionToken);
-		expect(core.whoIsSignedIn(club.id, session.sessionToken)).toBeUndefined();
 
-		second.clock.set('2027-01-10T14:00:00Z');
-		expect(second.core.whoIsSignedIn(second.club.id, second.session.sessionToken)).toBeUndefined();
-		void clock;
+		expect(core.whoIsSignedIn(club.id, session.sessionToken)).toBeUndefined();
+	});
+
+	it('ends after 60 days', () => {
+		const { core, club, clock, session } = signedIn();
+
+		clock.set('2027-01-09T13:59:00Z');
+		expect(core.whoIsSignedIn(club.id, session.sessionToken)).toBeDefined();
+		clock.set('2027-01-09T14:00:00Z');
+		expect(core.whoIsSignedIn(club.id, session.sessionToken)).toBeUndefined();
 	});
 
 	it("is not valid for another club's pages", () => {

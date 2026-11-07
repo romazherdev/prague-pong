@@ -23,3 +23,13 @@ export const LANGUAGE_COOKIE = 'lang';
 /** Holds the session token of a signed-in admin or captain. */
 export const SESSION_COOKIE = 'session';
 export const defaultClubSlug = () => process.env.DEFAULT_CLUB_SLUG ?? 'mladi-veterani';
+
+/**
+ * The public base URL for links the app sends out (sign-in emails). In production it must come from ORIGIN,
+ * never from the request: otherwise a forged Host header could make a real email point to another site.
+ */
+export function publicOrigin(requestUrl: URL, env: Record<string, string | undefined> = process.env): string {
+	if (env.ORIGIN) return env.ORIGIN.replace(/\/$/, '');
+	if (env.NODE_ENV === 'production') throw new Error('Set ORIGIN to the public URL, e.g. https://pong.example');
+	return requestUrl.origin;
+}
