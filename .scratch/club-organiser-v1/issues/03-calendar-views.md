@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Filter by team (A–D) or all teams
 - [ ] Past matches hidden by default, with an option to show them; "past" is decided by the clock port (tested with a fixed clock)
