@@ -1,9 +1,13 @@
-import { clubRequest, guarded, guardedForm } from '#lib/server/request.js';
+import { publicOrigin } from '#lib/server/app.js';
+import { clubRequest, guarded, guardedForm, matchMessages } from '#lib/server/request.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = (event) => {
 	const req = clubRequest(event);
-	return guarded(req, () => req.core.lineupView(req.actor, req.club.id, event.params.match));
+	return guarded(req, () => ({
+		...req.core.lineupView(req.actor, req.club.id, event.params.match),
+		whatsapp: matchMessages(req, event.params.match, publicOrigin(event.url))
+	}));
 };
 
 export const actions: Actions = {

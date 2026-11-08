@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { translator } from '#lib/i18n/messages.js';
-import { answerAction, answeringActor, clubRequest, guardedForm } from '#lib/server/request.js';
+import { publicOrigin } from '#lib/server/app.js';
+import { answerAction, answeringActor, clubRequest, guardedForm, matchMessages } from '#lib/server/request.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = (event) => {
@@ -20,6 +21,7 @@ export const load: PageServerLoad = (event) => {
 		myResponse,
 		lineup,
 		canCaptain,
+		whatsapp: canCaptain ? matchMessages(req, match.id, publicOrigin(event.url)) : null,
 		canAnswer: !!who && !match.isPast
 	};
 };

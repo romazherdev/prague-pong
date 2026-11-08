@@ -2,6 +2,7 @@
 	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
 	import AnswerButtons from '#lib/components/AnswerButtons.svelte';
 	import SpotOpenBadge from '#lib/components/SpotOpenBadge.svelte';
+	import WhatsAppMessages from '#lib/components/WhatsAppMessages.svelte';
 	import { mapLinks } from '#lib/maps.js';
 	import { formatClockTime, formatMatchDay, translator, type MessageKey } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
@@ -101,6 +102,10 @@
 	<a class="button" href={maps.mapyCz} target="_blank" rel="noopener noreferrer">Mapy.cz</a>
 	<a class="button" href={maps.googleMaps} target="_blank" rel="noopener noreferrer">Google Maps</a>
 </p>
+
+{#if data.whatsapp && !match.isPast}
+	<WhatsAppMessages messages={data.whatsapp} locale={data.locale} />
+{/if}
 
 {#if data.canCaptain && !match.isPast}
 	<details class="reschedule" open={!!(form && 'error' in form)}>

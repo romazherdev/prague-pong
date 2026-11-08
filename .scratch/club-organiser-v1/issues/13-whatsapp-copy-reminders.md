@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] "Copy reminder" builds a message with the match (team, opponent, date, time) and the names of active members of the team who haven't answered, plus the match link
 - [ ] "Copy share message" builds a message with the match details and its public calendar link

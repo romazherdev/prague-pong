@@ -6,6 +6,7 @@ import { calendarModule } from './calendar';
 import { resolveLocale } from './locale';
 import { lineupsModule } from './lineups';
 import { membersModule } from './members';
+import { messagesModule } from './messages';
 import { myEventsModule } from './my-events';
 import { pushModule } from './push';
 import { reschedulesModule } from './reschedules';
@@ -43,6 +44,7 @@ export function createClubCore(deps: CoreDeps) {
 		...settings,
 		...reschedulesModule({ ...deps, calendar }),
 		...pushModule({ ...deps, calendar }),
+		...messagesModule({ ...deps, calendar, responses }),
 		...clashes,
 		/** The captain's line-up view, with the clashes on that match's evening. */
 		lineupView: (actor: Actor | undefined, clubId: string, matchId: string) => ({

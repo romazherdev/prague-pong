@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { effectiveAnswer, type MatchAnswer } from '#lib/answers.js';
 	import ClashNotes from '#lib/components/ClashNotes.svelte';
+	import WhatsAppMessages from '#lib/components/WhatsAppMessages.svelte';
 	import { formatMatchTime, translator, type MessageKey } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
@@ -98,6 +99,10 @@
 		{#if form && 'saved' in form}<span class="ok">✓ {t('members.saved')}</span>{/if}
 	</div>
 </form>
+
+{#if !data.match.isPast}
+	<WhatsAppMessages messages={data.whatsapp} locale={data.locale} />
+{/if}
 
 <style>
 	.candidates {

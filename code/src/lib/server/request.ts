@@ -1,6 +1,6 @@
 import { error, fail, redirect, type Cookies } from '@sveltejs/kit';
 import { translator } from '#lib/i18n/messages.js';
-import type { Locale } from '#lib/i18n/locales.js';
+import { locales, type Locale } from '#lib/i18n/locales.js';
 import { appCore, MEMBER_COOKIE, SESSION_COOKIE } from './app';
 import { ForbiddenError, InvalidInputError, NotFoundError } from './core/access';
 import { isMatchAnswer } from '#lib/answers.js';
@@ -71,4 +71,14 @@ export async function answerAction(event: Parameters<typeof clubRequest>[0] & { 
 		return { answered: matchId };
 	});
 	return 'status' in result ? fail(result.status, { ...result.data, matchId }) : result;
+}
+
+/** All WhatsApp messages for a match (both kinds, every language), for the captain's copy buttons. */
+export function matchMessages(req: ReturnType<typeof clubRequest>, matchId: string, origin: string) {
+	const build = (kind: 'reminder' | 'share') =>
+		Object.fromEntries(locales.map((locale) => [locale, req.core.matchMessage(req.actor, req.club.id, matchId, kind, { origin, locale })])) as Record<
+			Locale,
+			string
+		>;
+	return { reminder: build('reminder'), share: build('share') };
 }
