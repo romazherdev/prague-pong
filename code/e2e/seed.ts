@@ -43,5 +43,8 @@ core.setCaptain(asAdmin, club.id, teamA.id, karel.id);
 await core.requestSignIn(club.id, 'karel@example.cz', { origin: '', locale: 'cs' });
 const captainSignInLink = /(\/\S+\/sign-in\/\S+)/.exec(sentEmails.at(-1) ?? '')![1];
 
-writeFileSync(`${dir}/state.json`, JSON.stringify({ clubSlug: club.slug, petrLink, captainSignInLink }, null, 2));
+await core.requestSignIn(club.id, 'jana@example.cz', { origin: '', locale: 'cs' });
+const adminSignInLink = /(\/\S+\/sign-in\/\S+)/.exec(sentEmails.at(-1) ?? '')![1];
+
+writeFileSync(`${dir}/state.json`, JSON.stringify({ clubSlug: club.slug, petrLink, captainSignInLink, adminSignInLink }, null, 2));
 console.log('e2e database seeded');

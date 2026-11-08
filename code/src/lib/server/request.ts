@@ -83,3 +83,28 @@ export function matchMessages(req: ReturnType<typeof clubRequest>, matchId: stri
 		>;
 	return Object.fromEntries(MATCH_MESSAGE_KINDS.map((kind) => [kind, build(kind)])) as Record<MatchMessageKind, Record<Locale, string>>;
 }
+
+/** Handles an in/out form (TrainingButtons) for the device's member. */
+export async function trainingAnswerAction(event: Parameters<typeof clubRequest>[0] & { request: Request }) {
+	const req = clubRequest(event);
+	const form = await event.request.formData();
+	const sessionId = String(form.get('sessionId') ?? '');
+	const answer = form.get('answer');
+	if (answer !== 'in' && answer !== 'out') return fail(400, { error: 'answerInvalid' as const, sessionId });
+	const actor = answeringActor(req);
+	if (!actor) return fail(403, { error: 'linkInvalid' as const, sessionId });
+	const result = guardedForm(req, () => {
+		req.core.recordTrainingResponse(actor, req.club.id, sessionId, answer);
+		return { answered: sessionId };
+	});
+	return 'status' in result ? fail(result.status, { ...result.data, sessionId }) : result;
+}
+
+/** All WhatsApp messages for a training session (both kinds, every language), for the admin's copy buttons. */
+export function trainingMessages(req: ReturnType<typeof clubRequest>, sessionId: string, origin: string) {
+	const build = (kind: MatchMessageKind) =>
+		Object.fromEntries(
+			locales.map((locale) => [locale, req.core.trainingMessage(req.actor, req.club.id, sessionId, kind, { origin, locale })])
+		) as Record<Locale, string>;
+	return Object.fromEntries(MATCH_MESSAGE_KINDS.map((kind) => [kind, build(kind)])) as Record<MatchMessageKind, Record<Locale, string>>;
+}

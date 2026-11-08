@@ -1,4 +1,4 @@
-import { answerAction, clubRequest } from '#lib/server/request.js';
+import { answerAction, clubRequest, trainingAnswerAction } from '#lib/server/request.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = (event) => {
@@ -7,4 +7,4 @@ export const load: PageServerLoad = (event) => {
 	return { events: core.myUpcomingEvents(member.actor, club.id) };
 };
 
-export const actions: Actions = { answer: answerAction };
+export const actions: Actions = { answer: answerAction, training: trainingAnswerAction };

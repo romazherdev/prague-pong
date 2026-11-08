@@ -136,6 +136,38 @@ const migrations: string[] = [
 		created_at TEXT NOT NULL
 	);
 	CREATE INDEX push_subscriptions_member ON push_subscriptions (member_id);
+	`,
+	// Training (ticket 14): weekly rules, the sessions generated from them, and members' in/out answers.
+	`
+	CREATE TABLE training_rules (
+		id TEXT PRIMARY KEY,
+		club_id TEXT NOT NULL REFERENCES clubs(id),
+		weekdays TEXT NOT NULL, -- ISO weekdays, comma-separated: 1 = Monday … 7 = Sunday
+		start_time TEXT NOT NULL, -- HH:mm, club time
+		end_time TEXT NOT NULL,
+		venue_id TEXT NOT NULL REFERENCES venues(id),
+		starts_on TEXT NOT NULL, -- first date it applies (club date)
+		ends_on TEXT -- last date it applies, or NULL
+	);
+	CREATE TABLE training_sessions (
+		id TEXT PRIMARY KEY,
+		club_id TEXT NOT NULL REFERENCES clubs(id),
+		rule_id TEXT NOT NULL REFERENCES training_rules(id),
+		date TEXT NOT NULL, -- club date
+		starts_at TEXT NOT NULL,
+		ends_at TEXT NOT NULL,
+		venue_id TEXT NOT NULL REFERENCES venues(id),
+		cancelled INTEGER NOT NULL DEFAULT 0,
+		UNIQUE (rule_id, date)
+	);
+	CREATE INDEX training_sessions_club_date ON training_sessions (club_id, date);
+	CREATE TABLE training_responses (
+		session_id TEXT NOT NULL REFERENCES training_sessions(id),
+		member_id TEXT NOT NULL REFERENCES members(id),
+		answer TEXT NOT NULL CHECK (answer IN ('in', 'out')),
+		answered_at TEXT NOT NULL,
+		PRIMARY KEY (session_id, member_id)
+	);
 	`
 ];
 

@@ -27,7 +27,9 @@ export type InvalidInputCode =
 	| 'settingsInvalid'
 	| 'dateInvalid'
 	| 'rescheduleInPast'
-	| 'pushSubscriptionInvalid';
+	| 'pushSubscriptionInvalid'
+	| 'trainingRuleInvalid'
+	| 'trainingClosed';
 
 /** The input breaks a rule; `code` says which, so routes can show a translated message. */
 export class InvalidInputError extends Error {

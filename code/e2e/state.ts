@@ -7,4 +7,5 @@ export const state = () =>
 		clubSlug: string;
 		petrLink: string;
 		captainSignInLink: string;
+		adminSignInLink: string;
 	};

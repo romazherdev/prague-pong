@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] An admin creates, edits and ends training rules (weekdays, start and end time, venue)
 - [ ] Sessions are generated for upcoming weeks from the rules (generation is tested with a fixed clock)

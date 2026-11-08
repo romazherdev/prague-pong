@@ -9,9 +9,10 @@
 	const t = $derived(translator(data.locale));
 	/** The calendar as evenings, each with its matches and its clashes. */
 	const evenings = $derived(
-		[...Map.groupBy(data.matches, (m) => m.evening)].map(([date, matches]) => ({
+		[...new Set([...data.matches.map((m) => m.evening), ...data.trainings.map((s) => s.evening)])].sort().map((date) => ({
 			date,
-			matches,
+			matches: data.matches.filter((m) => m.evening === date),
+			trainings: data.trainings.filter((s) => s.evening === date),
 			clashes: data.clashes.filter((c) => c.date === date)
 		}))
 	);
@@ -53,7 +54,7 @@
 	</a>
 </p>
 
-{#if data.matches.length === 0}
+{#if data.matches.length === 0 && data.trainings.length === 0}
 	<p>{data.includePast ? t('calendar.emptyAll') : t('calendar.empty')}</p>
 {:else}
 	<div class="evenings">
@@ -74,6 +75,17 @@
 									{match.venue.name}
 								</div>
 								<SpotOpenBadge count={match.spotsOpen} locale={data.locale} />
+							</a>
+						</li>
+					{/each}
+					{#each evening.trainings as s (s.id)}
+						<li>
+							<a class="match training" class:cancelled={s.cancelled} href="/{data.club.slug}/trainings/{s.id}">
+								<time datetime={s.startsAt}>{formatMatchTime(s.startsAt, data.locale, data.club.timeZone)}</time>
+								<div class="teams"><span class="team">{t('training.title')}</span> <span>{s.venue.name}</span></div>
+								<div class="where">
+									{#if s.cancelled}<strong>{t('training.cancelledShort')}</strong>{:else}{t('training.coming', { count: String(s.coming) })}{/if}
+								</div>
 							</a>
 						</li>
 					{/each}
@@ -131,6 +143,14 @@
 		padding: 0.75rem 1rem;
 		color: inherit;
 		text-decoration: none;
+	}
+	.match.training {
+		background: #f0fdf4;
+	}
+	.match.training.cancelled {
+		background: #f5f5f4;
+		text-decoration: line-through;
+		color: #777;
 	}
 	.evenings {
 		display: grid;

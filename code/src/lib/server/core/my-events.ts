@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { accessRules, type Actor } from './access';
 import type { CalendarMatch, calendarModule, Team } from './calendar';
 import type { lineupsModule } from './lineups';
+import type { TrainingAnswer, TrainingSession, trainingModule } from './training';
 import type { MatchAnswer, responsesModule } from './responses';
 
 export type MyMatch = CalendarMatch & {
@@ -24,6 +25,8 @@ export type MyEvents = {
 	unansweredMyTeam: number;
 	/** How many moved matches (any team) they should answer again. */
 	toReconfirm: number;
+	/** Upcoming training sessions (cancelled ones included, marked) with the member's in/out. */
+	trainings: (TrainingSession & { myAnswer: TrainingAnswer | null })[];
 };
 
 /** What a member sees when they open their personal link. */
@@ -32,8 +35,9 @@ export function myEventsModule(deps: {
 	calendar: ReturnType<typeof calendarModule>;
 	responses: ReturnType<typeof responsesModule>;
 	lineups: ReturnType<typeof lineupsModule>;
+	training: ReturnType<typeof trainingModule>;
 }) {
-	const { db, calendar, responses, lineups } = deps;
+	const { db, calendar, responses, lineups, training } = deps;
 	const rules = accessRules(db);
 
 	return {
@@ -56,7 +60,8 @@ export function myEventsModule(deps: {
 				team: team ?? null,
 				matches,
 				unansweredMyTeam: matches.filter((m) => m.isMyTeam && !m.myAnswer).length,
-				toReconfirm: matches.filter((m) => m.needsReconfirm).length
+				toReconfirm: matches.filter((m) => m.needsReconfirm).length,
+				trainings: training.myTrainingSessions(me.id, clubId)
 			};
 		}
 	};

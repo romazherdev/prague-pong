@@ -3,6 +3,7 @@ import { accessRules, type Actor } from './access';
 import { DEFAULT_TIME_ZONE, type CalendarMatch, type calendarModule, type MatchFilter } from './calendar';
 import type { lineupsModule } from './lineups';
 import type { settingsModule } from './settings';
+import type { TrainingSession, trainingModule } from './training';
 import { localDate } from './time';
 
 /** A problem on one evening (the club's local date). `matchIds` are the matches involved, soonest first. */
@@ -24,7 +25,8 @@ export type EveningMatch = CalendarMatch & {
 	spotsOpen: number;
 };
 
-export type ClubCalendar = { matches: EveningMatch[]; clashes: EveningClash[] };
+/** The club calendar: matches and training sessions, each with its evening, and the clashes. */
+export type ClubCalendar = { matches: EveningMatch[]; trainings: (TrainingSession & { evening: string })[]; clashes: EveningClash[] };
 
 /** Evening-by-evening checks across all of the club's teams. */
 export function clashesModule(deps: {
@@ -32,8 +34,9 @@ export function clashesModule(deps: {
 	calendar: ReturnType<typeof calendarModule>;
 	lineups: ReturnType<typeof lineupsModule>;
 	settings: ReturnType<typeof settingsModule>;
+	training: ReturnType<typeof trainingModule>;
 }) {
-	const { calendar, lineups, settings } = deps;
+	const { calendar, lineups, settings, training } = deps;
 	const rules = accessRules(deps.db);
 
 	function clashesAmong(clubId: string, matches: CalendarMatch[]): EveningClash[] {
@@ -92,7 +95,8 @@ export function clashesModule(deps: {
 			const clashes = clashesAmong(clubId, all).filter(
 				(c) => c.matchIds.some((id) => shown.has(id)) && (isMember || c.kind !== 'doubleBooked')
 			);
-			return { matches, clashes };
+			const trainings = training.listTrainingSessions(clubId, { includePast: filter.includePast }).map((s) => ({ ...s, evening: s.date }));
+			return { matches, trainings, clashes };
 		},
 
 		/** The clashes on the evening of one match that involve it. */

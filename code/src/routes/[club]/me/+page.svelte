@@ -2,6 +2,7 @@
 	import AnswerButtons from '#lib/components/AnswerButtons.svelte';
 	import HomeAwayBadge from '#lib/components/HomeAwayBadge.svelte';
 	import PushToggle from '#lib/components/PushToggle.svelte';
+	import TrainingButtons from '#lib/components/TrainingButtons.svelte';
 	import { firstName, formatMatchTime, translator } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
@@ -57,6 +58,24 @@
 		{#if events.team}<p class="hint">{t('me.otherTeamsHint')}</p>{/if}
 		{@render list(others)}
 	{/if}
+	{#if events.trainings.length}
+		<h2>{t('me.trainings')}</h2>
+		<ul class="events">
+			{#each events.trainings.slice(0, 6) as s (s.id)}
+				<li class="event training" class:cancelled={s.cancelled}>
+					<a class="details" href="/{data.club.slug}/trainings/{s.id}">
+						<time datetime={s.startsAt}>{formatMatchTime(s.startsAt, data.locale, data.club.timeZone)}</time>
+						<span class="what"><strong>{t('training.title')}</strong> · {s.venue.name} · {t('training.coming', { count: String(s.coming) })}</span>
+					</a>
+					{#if s.cancelled}
+						<p class="hint">{t('training.cancelled')}</p>
+					{:else}
+						<TrainingButtons sessionId={s.id} current={s.myAnswer} locale={data.locale} />
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	{/if}
 	<PushToggle clubSlug={data.club.slug} vapidPublicKey={data.vapidPublicKey} locale={data.locale} />
 {/if}
 
@@ -91,6 +110,10 @@
 	}
 	.what {
 		width: 100%;
+	}
+	.event.cancelled .details {
+		text-decoration: line-through;
+		color: #777;
 	}
 	.flag.playing {
 		background: #15803d;

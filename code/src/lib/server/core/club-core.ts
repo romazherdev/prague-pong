@@ -13,6 +13,7 @@ import { reschedulesModule } from './reschedules';
 import { responsesModule } from './responses';
 import { rostersModule } from './rosters';
 import { settingsModule } from './settings';
+import { trainingModule } from './training';
 import type { Clock, Mailer, Notifier } from './ports';
 
 export * from './calendar';
@@ -32,7 +33,8 @@ export function createClubCore(deps: CoreDeps) {
 	// Responses report each answer change; drop-outs decide whom to notify.
 	const responses = responsesModule({ ...deps, calendar, onAnswerChanged: dropouts.onAnswerChanged });
 	const settings = settingsModule(deps);
-	const clashes = clashesModule({ ...deps, calendar, lineups, settings });
+	const training = trainingModule({ ...deps, calendar });
+	const clashes = clashesModule({ ...deps, calendar, lineups, settings, training });
 	return {
 		resolveLocale,
 		...calendar,
@@ -51,6 +53,7 @@ export function createClubCore(deps: CoreDeps) {
 			...lineups.lineupView(actor, clubId, matchId),
 			clashes: clashes.clashesForMatch(clubId, matchId)
 		}),
-		...myEventsModule({ ...deps, calendar, responses, lineups })
+		...training,
+		...myEventsModule({ ...deps, calendar, responses, lineups, training })
 	};
 }
