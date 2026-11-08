@@ -41,6 +41,16 @@ export type TrainingSession = {
 	coming: number;
 };
 
+type RuleRow = {
+	id: string;
+	weekdays: string;
+	start_time: string;
+	end_time: string;
+	venue_id: string;
+	starts_on: string;
+	ends_on: string | null;
+};
+
 const isTime = (t: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
 const addDays = (date: string, days: number) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 const isoWeekday = (date: string) => new Date(`${date}T12:00:00Z`).getUTCDay() || 7;
@@ -65,9 +75,7 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 	}
 
 	function ruleOf(clubId: string, ruleId: string) {
-		const row = db.prepare('SELECT * FROM training_rules WHERE id = ? AND club_id = ?').get(ruleId, clubId) as
-			| { id: string; weekdays: string; start_time: string; end_time: string; venue_id: string; starts_on: string; ends_on: string | null }
-			| undefined;
+		const row = db.prepare('SELECT * FROM training_rules WHERE id = ? AND club_id = ?').get(ruleId, clubId) as RuleRow | undefined;
 		if (!row) throw new NotFoundError('No such training rule');
 		return row;
 	}
@@ -79,7 +87,7 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 		const until = addDays(from, TRAINING_HORIZON_DAYS);
 		const active = db
 			.prepare('SELECT * FROM training_rules WHERE club_id = ? AND (ends_on IS NULL OR ends_on >= ?)')
-			.all(clubId, from) as { id: string; weekdays: string; start_time: string; end_time: string; venue_id: string; starts_on: string; ends_on: string | null }[];
+			.all(clubId, from) as RuleRow[];
 		const insert = db.prepare(
 			`INSERT OR IGNORE INTO training_sessions (id, club_id, rule_id, date, starts_at, ends_at, venue_id)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -128,10 +136,15 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 		coming: r.coming
 	});
 
-	function sessionOf(clubId: string, sessionId: string): TrainingSession {
+	function findSession(clubId: string, sessionId: string): TrainingSession | undefined {
 		const row = db.prepare(`${SESSION_SELECT} WHERE s.id = ? AND s.club_id = ?`).get(sessionId, clubId) as SessionRow | undefined;
-		if (!row) throw new NotFoundError('No such training session');
-		return toSession(row);
+		return row && toSession(row);
+	}
+
+	function sessionOf(clubId: string, sessionId: string): TrainingSession {
+		const session = findSession(clubId, sessionId);
+		if (!session) throw new NotFoundError('No such training session');
+		return session;
 	}
 
 	function listTrainingSessions(clubId: string, opts: { includePast?: boolean } = {}): TrainingSession[] {
@@ -160,8 +173,8 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 
 		/** One of the club's sessions as anyone sees it (the page is public, like a match); undefined if none. */
 		getTrainingSession(clubId: string, sessionId: string): (TrainingSession & { isPast: boolean }) | undefined {
-			const row = db.prepare(`${SESSION_SELECT} WHERE s.id = ? AND s.club_id = ?`).get(sessionId, clubId) as SessionRow | undefined;
-			return row && { ...toSession(row), isPast: row.date < today(clubId) };
+			const session = findSession(clubId, sessionId);
+			return session && { ...session, isPast: session.date < today(clubId) };
 		},
 
 		/** Venues the club plays or trains at, home venues first (by home matches), for picking one. Admins only. */
@@ -192,17 +205,7 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 					`SELECT r.*, v.name AS venue_name, v.address AS venue_address FROM training_rules r JOIN venues v ON v.id = r.venue_id
 					 WHERE r.club_id = ? ORDER BY (r.ends_on IS NOT NULL), r.starts_on`
 				)
-				.all(clubId) as {
-				id: string;
-				weekdays: string;
-				start_time: string;
-				end_time: string;
-				venue_id: string;
-				venue_name: string;
-				venue_address: string;
-				starts_on: string;
-				ends_on: string | null;
-			}[];
+				.all(clubId) as (RuleRow & { venue_name: string; venue_address: string })[];
 			return rows.map((r) => ({
 				id: r.id,
 				weekdays: r.weekdays.split(',').map(Number),
@@ -228,15 +231,16 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 		},
 
 		/**
-		 * Changes a rule from today on: upcoming sessions on days it no longer covers are removed (with their
-		 * answers); the others get the new times and venue and keep their answers and cancellations.
+		 * Changes a rule for sessions that haven't started yet: those on days it no longer covers are removed
+		 * (with their answers); the others get the new times and venue and keep answers and cancellations.
+		 * Not for ended rules.
 		 */
 		updateTrainingRule(actor: Actor | undefined, clubId: string, ruleId: string, input: TrainingRuleInput): void {
 			rules.requireAdmin(actor, clubId);
-			ruleOf(clubId, ruleId);
+			if (ruleOf(clubId, ruleId).ends_on) throw new InvalidInputError('trainingRuleEnded');
 			const rule = validRule(input);
 			const { timeZone } = clubOf(clubId);
-			const from = today(clubId);
+			const now = clock.now().toISOString();
 			db.transaction(() => {
 				db.prepare('UPDATE training_rules SET weekdays = ?, start_time = ?, end_time = ?, venue_id = ? WHERE id = ?').run(
 					rule.weekdays.join(','),
@@ -245,7 +249,8 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 					rule.venueId,
 					ruleId
 				);
-				const upcoming = db.prepare('SELECT id, date FROM training_sessions WHERE rule_id = ? AND date >= ?').all(ruleId, from) as {
+				// Only sessions that haven't started: tonight's session, once under way, stays as it was.
+				const upcoming = db.prepare('SELECT id, date FROM training_sessions WHERE rule_id = ? AND starts_at > ?').all(ruleId, now) as {
 					id: string;
 					date: string;
 				}[];
@@ -266,22 +271,25 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 			generateSessions(clubId);
 		},
 
-		/** Stops a rule after `lastDate` (club date): later sessions are removed with their answers. Admins only. */
+		/**
+		 * Stops a rule after `lastDate` (club date, yesterday at the earliest): its later sessions that haven't
+		 * happened yet are removed with their answers. Past sessions are history and stay. Admins only.
+		 */
 		endTrainingRule(actor: Actor | undefined, clubId: string, ruleId: string, lastDate: string): void {
 			rules.requireAdmin(actor, clubId);
 			ruleOf(clubId, ruleId);
-			if (!/^\d{4}-\d{2}-\d{2}$/.test(lastDate)) throw new InvalidInputError('dateInvalid');
+			const isRealDate = /^\d{4}-\d{2}-\d{2}$/.test(lastDate) && !Number.isNaN(Date.parse(`${lastDate}T12:00:00Z`)) && addDays(lastDate, 0) === lastDate;
+			if (!isRealDate || lastDate < addDays(today(clubId), -1)) throw new InvalidInputError('dateInvalid');
+			const gone = `SELECT id FROM training_sessions WHERE rule_id = @ruleId AND date > @lastDate AND date >= @today`;
+			const params = { ruleId, lastDate, today: today(clubId) };
 			db.transaction(() => {
 				db.prepare('UPDATE training_rules SET ends_on = ? WHERE id = ?').run(lastDate, ruleId);
-				db.prepare('DELETE FROM training_responses WHERE session_id IN (SELECT id FROM training_sessions WHERE rule_id = ? AND date > ?)').run(
-					ruleId,
-					lastDate
-				);
-				db.prepare('DELETE FROM training_sessions WHERE rule_id = ? AND date > ?').run(ruleId, lastDate);
+				db.prepare(`DELETE FROM training_responses WHERE session_id IN (${gone})`).run(params);
+				db.prepare(`DELETE FROM training_sessions WHERE id IN (${gone})`).run(params);
 			})();
 		},
 
-		/** Cancels one session (holiday, hall closed); answers are kept in case it's restored. Admins only. */
+		/** Cancels one session (holiday, venue closed); answers are kept in case it's restored. Admins only. */
 		cancelTrainingSession(actor: Actor | undefined, clubId: string, sessionId: string): void {
 			rules.requireAdmin(actor, clubId);
 			sessionOf(clubId, sessionId);
@@ -327,8 +335,9 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 		},
 
 		/** The member's upcoming sessions with their answers (for "my events"). */
-		myTrainingSessions(memberId: string, clubId: string): (TrainingSession & { myAnswer: TrainingAnswer | null })[] {
-			const answers = answersOf(memberId);
+		myTrainingSessions(actor: Actor | undefined, clubId: string): (TrainingSession & { myAnswer: TrainingAnswer | null })[] {
+			const me = rules.requireMember(actor, clubId);
+			const answers = answersOf(me.id);
 			return listTrainingSessions(clubId).map((s) => ({ ...s, myAnswer: answers.get(s.id) ?? null }));
 		},
 

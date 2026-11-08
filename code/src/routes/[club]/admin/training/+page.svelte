@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatMatchTime, translator, type MessageKey } from '#lib/i18n/messages.js';
+	import { formatMatchDay, formatMatchTime, translator, type MessageKey } from '#lib/i18n/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -34,7 +34,7 @@
 	<section class="rule" class:ended={rule.endsOn}>
 		<h2>{rule.weekdays.map(dayName).join(', ')} {rule.startTime}–{rule.endTime} · {rule.venue.name}</h2>
 		{#if rule.endsOn}
-			<p class="hint">{t('trainingAdmin.endedOn', { date: rule.endsOn })}</p>
+			<p class="hint">{t('trainingAdmin.endedOn', { date: formatMatchDay(`${rule.endsOn}T12:00:00Z`, data.locale, data.club.timeZone) })}</p>
 		{:else}
 			<details>
 				<summary>{t('trainingAdmin.edit')}</summary>

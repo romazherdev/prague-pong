@@ -10,15 +10,15 @@ function setup() {
 	const { seed } = harness;
 	const club = seed.club({ name: 'Mladí Veteráni', slug: 'mladi-veterani' });
 	const teamA = seed.team({ clubId: club.id, name: 'A' });
-	const hall = seed.venue({ name: 'Pod Juliskou', address: 'Pod Juliskou 4, Praha 6' });
+	const homeVenue = seed.venue({ name: 'Pod Juliskou', address: 'Pod Juliskou 4, Praha 6' });
 	const admin = seed.member({ clubId: club.id, name: 'Admin', isAdmin: true });
 	const asAdmin: Actor = { via: 'session', memberId: admin.id };
 	const member = (name: string) => {
 		const m = seed.member({ clubId: club.id, name, teamId: teamA.id });
 		return { ...m, link: { via: 'personal-link', memberId: m.id } as Actor };
 	};
-	const tueThu = { weekdays: [2, 4], startTime: '18:00', endTime: '20:00', venueId: hall.id };
-	return { ...harness, club, teamA, hall, admin, asAdmin, member, tueThu };
+	const tueThu = { weekdays: [2, 4], startTime: '18:00', endTime: '20:00', venueId: homeVenue.id };
+	return { ...harness, club, teamA, homeVenue, admin, asAdmin, member, tueThu };
 }
 
 const dates = (sessions: { date: string }[]) => sessions.map((s) => s.date);
@@ -119,6 +119,7 @@ describe('training responses', () => {
 		expect(core.listTrainingSessions(club.id)[0].coming).toBe(1);
 		expect(core.trainingSession(petr.link, club.id, tuesday.id)).toMatchObject({ coming: 1, comingNames: ['Petr'], myAnswer: 'in' });
 		expect(core.myUpcomingEvents(eva.link, club.id).trainings[0]).toMatchObject({ myAnswer: 'out', coming: 1 });
+		expect(core.myTrainingSessions(eva.link, club.id)[0].myAnswer).toBe('out');
 	});
 
 	it("doesn't count members who left the club", () => {
@@ -187,13 +188,66 @@ describe('training messages for WhatsApp', () => {
 
 describe('clubVenues', () => {
 	it("lists the venues the club plays at, home venue first, for the admin's training form", () => {
-		const { core, club, asAdmin, hall, seed, teamA } = setup();
+		const { core, club, asAdmin, homeVenue, seed, teamA } = setup();
 		const away = seed.venue({ name: 'Away hall', address: 'Somewhere' });
 		seed.venue({ name: 'Unrelated', address: 'Elsewhere' });
-		seed.match({ clubId: club.id, teamId: teamA.id, venueId: hall.id, opponent: 'X', isHome: true, startsAt: '2026-11-17T17:00:00Z' });
+		seed.match({ clubId: club.id, teamId: teamA.id, venueId: homeVenue.id, opponent: 'X', isHome: true, startsAt: '2026-11-17T17:00:00Z' });
 		seed.match({ clubId: club.id, teamId: teamA.id, venueId: away.id, opponent: 'Y', isHome: false, startsAt: '2026-11-18T17:00:00Z' });
 
 		expect(core.clubVenues(asAdmin, club.id).map((v) => v.name)).toEqual(['Pod Juliskou', 'Away hall']);
+	});
+});
+
+describe('training rules: edge cases', () => {
+	it('keeps club time across the switch to summer time', () => {
+		const { core, club, asAdmin, tueThu, clock } = setup();
+		clock.set('2027-03-20T10:00:00Z');
+		core.createTrainingRule(asAdmin, club.id, tueThu);
+
+		const sessions = core.listTrainingSessions(club.id);
+
+		expect(sessions.find((s) => s.date === '2027-03-25')?.startsAt).toBe('2027-03-25T17:00:00Z');
+		expect(sessions.find((s) => s.date === '2027-03-30')?.startsAt).toBe('2027-03-30T16:00:00Z');
+	});
+
+	it("ending a rule never deletes sessions that already happened, and refuses dates before yesterday or that don't exist", () => {
+		const { core, club, asAdmin, tueThu, member, clock } = setup();
+		const rule = core.createTrainingRule(asAdmin, club.id, tueThu);
+		const [tuesday] = core.listTrainingSessions(club.id);
+		const petr = member('Petr');
+		core.recordTrainingResponse(petr.link, club.id, tuesday.id, 'in');
+		clock.set('2026-11-11T10:00:00Z'); // Wednesday
+
+		expect(() => core.endTrainingRule(asAdmin, club.id, rule.id, '2026-10-01')).toThrow(InvalidInputError);
+		expect(() => core.endTrainingRule(asAdmin, club.id, rule.id, '2026-13-45')).toThrow(InvalidInputError);
+		core.endTrainingRule(asAdmin, club.id, rule.id, '2026-11-10');
+
+		expect(core.listTrainingSessions(club.id, { includePast: true }).map((s) => [s.date, s.coming])).toEqual([['2026-11-10', 1]]);
+	});
+
+	it("editing a rule leaves tonight's session alone once it has started, and ended rules can't be edited", () => {
+		const { core, club, asAdmin, tueThu, clock } = setup();
+		const rule = core.createTrainingRule(asAdmin, club.id, tueThu);
+		clock.set('2026-11-10T18:30:00Z'); // 19:30, training is on
+
+		core.updateTrainingRule(asAdmin, club.id, rule.id, { ...tueThu, weekdays: [4] });
+		expect(core.listTrainingSessions(club.id)[0]).toMatchObject({ date: '2026-11-10', startsAt: '2026-11-10T17:00:00Z' });
+
+		core.endTrainingRule(asAdmin, club.id, rule.id, '2026-11-20');
+		expect(() => core.updateTrainingRule(asAdmin, club.id, rule.id, tueThu)).toThrow(InvalidInputError);
+	});
+
+	it("other clubs' admins and members can't touch the club's sessions", () => {
+		const { core, club, asAdmin, tueThu, seed } = setup();
+		core.createTrainingRule(asAdmin, club.id, tueThu);
+		const [tuesday] = core.listTrainingSessions(club.id);
+		const other = seed.club({ name: 'Other' });
+		const otherAdmin = seed.member({ clubId: other.id, name: 'Other admin', isAdmin: true });
+		const outsider: Actor = { via: 'session', memberId: otherAdmin.id };
+
+		expect(() => core.cancelTrainingSession(outsider, club.id, tuesday.id)).toThrow(ForbiddenError);
+		expect(() => core.recordTrainingResponse(outsider, club.id, tuesday.id, 'in')).toThrow(ForbiddenError);
+		expect(() => core.cancelTrainingSession(outsider, other.id, tuesday.id)).toThrow();
 	});
 });
 

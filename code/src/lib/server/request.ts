@@ -74,15 +74,16 @@ export async function answerAction(event: Parameters<typeof clubRequest>[0] & { 
 	return 'status' in result ? fail(result.status, { ...result.data, matchId }) : result;
 }
 
-/** All WhatsApp messages for a match (both kinds, every language), for the captain's copy buttons. */
-export function matchMessages(req: ReturnType<typeof clubRequest>, matchId: string, origin: string) {
-	const build = (kind: MatchMessageKind) =>
-		Object.fromEntries(locales.map((locale) => [locale, req.core.matchMessage(req.actor, req.club.id, matchId, kind, { origin, locale })])) as Record<
-			Locale,
-			string
-		>;
-	return Object.fromEntries(MATCH_MESSAGE_KINDS.map((kind) => [kind, build(kind)])) as Record<MatchMessageKind, Record<Locale, string>>;
+/** Every group-chat message (each kind, each language) from one builder, for the copy buttons. */
+function allMessages(build: (kind: MatchMessageKind, locale: Locale) => string) {
+	return Object.fromEntries(
+		MATCH_MESSAGE_KINDS.map((kind) => [kind, Object.fromEntries(locales.map((locale) => [locale, build(kind, locale)]))])
+	) as Record<MatchMessageKind, Record<Locale, string>>;
 }
+
+/** All WhatsApp messages for a match, for the captain's copy buttons. */
+export const matchMessages = (req: ReturnType<typeof clubRequest>, matchId: string, origin: string) =>
+	allMessages((kind, locale) => req.core.matchMessage(req.actor, req.club.id, matchId, kind, { origin, locale }));
 
 /** Handles an in/out form (TrainingButtons) for the device's member. */
 export async function trainingAnswerAction(event: Parameters<typeof clubRequest>[0] & { request: Request }) {
@@ -100,11 +101,6 @@ export async function trainingAnswerAction(event: Parameters<typeof clubRequest>
 	return 'status' in result ? fail(result.status, { ...result.data, sessionId }) : result;
 }
 
-/** All WhatsApp messages for a training session (both kinds, every language), for the admin's copy buttons. */
-export function trainingMessages(req: ReturnType<typeof clubRequest>, sessionId: string, origin: string) {
-	const build = (kind: MatchMessageKind) =>
-		Object.fromEntries(
-			locales.map((locale) => [locale, req.core.trainingMessage(req.actor, req.club.id, sessionId, kind, { origin, locale })])
-		) as Record<Locale, string>;
-	return Object.fromEntries(MATCH_MESSAGE_KINDS.map((kind) => [kind, build(kind)])) as Record<MatchMessageKind, Record<Locale, string>>;
-}
+/** All WhatsApp messages for a training session, for the admin's copy buttons. */
+export const trainingMessages = (req: ReturnType<typeof clubRequest>, sessionId: string, origin: string) =>
+	allMessages((kind, locale) => req.core.trainingMessage(req.actor, req.club.id, sessionId, kind, { origin, locale }));

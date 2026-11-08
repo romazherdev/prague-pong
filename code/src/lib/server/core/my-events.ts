@@ -61,7 +61,7 @@ export function myEventsModule(deps: {
 				matches,
 				unansweredMyTeam: matches.filter((m) => m.isMyTeam && !m.myAnswer).length,
 				toReconfirm: matches.filter((m) => m.needsReconfirm).length,
-				trainings: training.myTrainingSessions(me.id, clubId)
+				trainings: training.myTrainingSessions(actor, clubId)
 			};
 		}
 	};

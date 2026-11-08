@@ -15,7 +15,8 @@ A club organiser for table tennis clubs, starting with Mladí Veteráni (Prague)
 - **Personal link** — a member's private URL carrying a secret token; identifies them without a login and only ever allows member actions. Regenerating it invalidates the old one. Never posted in group chats. Opening it remembers the member on that device (cookie) and shows **my events** (ADR 0004).
 - **Event** — anything members answer for. Two kinds:
   - **Match** — a league fixture (Czech: *utkání*): team, opponent, home or away, venue, start and end time, fixture key.
-  - **Training session** — generated from a **training rule** (weekdays + times); can be cancelled.
+  - **Training rule** — a weekly training (weekdays, times, venue) that training sessions are generated from (ADR 0006).
+- **Training session** — generated from a **training rule** (weekdays + times); can be cancelled.
 - **Fixture key** — how an imported match is recognised on re-import: competition + home team + away team (ADR 0002). Not a STIS id; the export has none.
 - **Response** — a member's answer to an event. Matches: yes / maybe / no, plus **please reconfirm** after a reschedule. Training: in / out.
 - **Line-up** — the 4 players chosen for a match (Czech: *sestava*). No player order. Any active member from any team.
