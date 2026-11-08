@@ -100,7 +100,7 @@
 	</div>
 </form>
 
-{#if !data.match.isPast}
+{#if data.whatsapp}
 	<WhatsAppMessages messages={data.whatsapp} locale={data.locale} />
 {/if}
 

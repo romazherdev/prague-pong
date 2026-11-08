@@ -94,13 +94,17 @@ describe('matchMessage: share', () => {
 
 describe('messages are for the group chat', () => {
 	it('never contain a personal link', () => {
-		const { core, club, match, member, teamA, captain } = setup();
-		member('Petr Novák', teamA.id);
+		const { core, club, match, member, teamA, captain, asAdmin } = setup();
+		const petr = member('Petr Novák', teamA.id);
+		const tokens = [petr.id, captain.id].map((id) =>
+			core.personalLinkMessage(asAdmin, club.id, id, { origin: ORIGIN, locale: 'cs' }).url.split('/').at(-1)!
+		);
 
 		for (const kind of ['reminder', 'share'] as const) {
 			for (const locale of ['cs', 'en'] as const) {
 				const text = core.matchMessage(captain.session, club.id, match.id, kind, { origin: ORIGIN, locale });
 				expect(text).not.toMatch(/\/m\//);
+				for (const token of tokens) expect(text).not.toContain(token);
 			}
 		}
 	});

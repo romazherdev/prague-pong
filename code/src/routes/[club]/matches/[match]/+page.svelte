@@ -103,7 +103,7 @@
 	<a class="button" href={maps.googleMaps} target="_blank" rel="noopener noreferrer">Google Maps</a>
 </p>
 
-{#if data.whatsapp && !match.isPast}
+{#if data.whatsapp}
 	<WhatsAppMessages messages={data.whatsapp} locale={data.locale} />
 {/if}
 

@@ -4,6 +4,7 @@ import { locales, type Locale } from '#lib/i18n/locales.js';
 import { appCore, MEMBER_COOKIE, SESSION_COOKIE } from './app';
 import { ForbiddenError, InvalidInputError, NotFoundError } from './core/access';
 import { isMatchAnswer } from '#lib/answers.js';
+import { MATCH_MESSAGE_KINDS, type MatchMessageKind } from '#lib/message-kinds.js';
 
 /**
  * The club in the URL, whoever is signed in to it (session) and the member whose personal link this device
@@ -75,10 +76,10 @@ export async function answerAction(event: Parameters<typeof clubRequest>[0] & { 
 
 /** All WhatsApp messages for a match (both kinds, every language), for the captain's copy buttons. */
 export function matchMessages(req: ReturnType<typeof clubRequest>, matchId: string, origin: string) {
-	const build = (kind: 'reminder' | 'share') =>
+	const build = (kind: MatchMessageKind) =>
 		Object.fromEntries(locales.map((locale) => [locale, req.core.matchMessage(req.actor, req.club.id, matchId, kind, { origin, locale })])) as Record<
 			Locale,
 			string
 		>;
-	return { reminder: build('reminder'), share: build('share') };
+	return Object.fromEntries(MATCH_MESSAGE_KINDS.map((kind) => [kind, build(kind)])) as Record<MatchMessageKind, Record<Locale, string>>;
 }

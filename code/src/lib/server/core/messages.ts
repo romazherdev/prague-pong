@@ -1,12 +1,12 @@
 import type Database from 'better-sqlite3';
 import type { Locale } from '#lib/i18n/locales.js';
+import type { MatchMessageKind } from '#lib/message-kinds.js';
 import { formatClockTime, formatMatchDay, translator } from '#lib/i18n/messages.js';
 import { accessRules, NotFoundError, type Actor } from './access';
 import type { calendarModule, MatchDetail } from './calendar';
 import type { responsesModule } from './responses';
 
-/** "reminder" names who still has to answer; "share" announces the match. */
-export type MatchMessageKind = 'reminder' | 'share';
+export type { MatchMessageKind } from '#lib/message-kinds.js';
 
 /**
  * Ready-to-paste WhatsApp messages for the club's group chat. They link to the public match page only,
@@ -23,7 +23,7 @@ export function messagesModule(deps: {
 	function headline(match: MatchDetail, locale: Locale, timeZone: string) {
 		const t = translator(locale);
 		const when = `${formatMatchDay(match.startsAt, locale, timeZone)}, ${formatClockTime(match.startsAt, locale, timeZone)}`;
-		const where = match.isHome ? t('message.home') : t('message.away');
+		const where = (match.isHome ? t('match.home') : t('match.away')).toLowerCase();
 		return `🏓 ${t('match.team', { team: match.team.name })} ${t('match.versus', { opponent: match.opponent })} – ${when} (${where})`;
 	}
 

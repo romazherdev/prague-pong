@@ -21,7 +21,7 @@ export const load: PageServerLoad = (event) => {
 		myResponse,
 		lineup,
 		canCaptain,
-		whatsapp: canCaptain ? matchMessages(req, match.id, publicOrigin(event.url)) : null,
+		whatsapp: canCaptain && !match.isPast ? matchMessages(req, match.id, publicOrigin(event.url)) : null,
 		canAnswer: !!who && !match.isPast
 	};
 };

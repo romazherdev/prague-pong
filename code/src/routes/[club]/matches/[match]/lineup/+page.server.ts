@@ -4,10 +4,10 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = (event) => {
 	const req = clubRequest(event);
-	return guarded(req, () => ({
-		...req.core.lineupView(req.actor, req.club.id, event.params.match),
-		whatsapp: matchMessages(req, event.params.match, publicOrigin(event.url))
-	}));
+	return guarded(req, () => {
+		const view = req.core.lineupView(req.actor, req.club.id, event.params.match);
+		return { ...view, whatsapp: view.match.isPast ? null : matchMessages(req, event.params.match, publicOrigin(event.url)) };
+	});
 };
 
 export const actions: Actions = {
