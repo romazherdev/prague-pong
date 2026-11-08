@@ -42,14 +42,14 @@ export type TrainingSession = {
 	coming: number;
 	/** Tables left after home matches that overlap the session (never below 0). */
 	freeTables: number;
-	/** Home matches overlapping the session, which take its tables. */
+	/** Home matches at the session's venue overlapping it, which take its tables. */
 	homeMatchIds: string[];
 	/** Fewer free tables than the club's minimum for viable training (never for a cancelled session). */
-	tooFewTables: boolean;
+	belowMinTables: boolean;
 };
 
 /** A home match without an end time is assumed to take this long. */
-export const DEFAULT_MATCH_HOURS = 3;
+const DEFAULT_MATCH_HOURS = 3;
 
 type RuleRow = {
 	id: string;
@@ -132,37 +132,43 @@ export function trainingModule(deps: {
 		date: string;
 		starts_at: string;
 		ends_at: string;
+		venue_id: string;
 		venue_name: string;
 		venue_address: string;
 		cancelled: number;
 		coming: number;
 	};
-	const SESSION_SELECT = `SELECT s.id, s.date, s.starts_at, s.ends_at, v.name AS venue_name, v.address AS venue_address, s.cancelled,
+	const SESSION_SELECT = `SELECT s.id, s.date, s.starts_at, s.ends_at, s.venue_id, v.name AS venue_name, v.address AS venue_address, s.cancelled,
 		(SELECT count(*) FROM training_responses r JOIN members m ON m.id = r.member_id
 		 WHERE r.session_id = s.id AND r.answer = 'in' AND m.active = 1) AS coming
 		FROM training_sessions s JOIN venues v ON v.id = s.venue_id`;
 	/**
-	 * Adds the table maths to sessions: free tables = total − (overlapping home matches × tables per match),
-	 * never below 0, compared with the club's minimum for viable training.
+	 * Adds the table maths to sessions: free tables = total − (home matches at the session's venue that
+	 * overlap it × tables per match), never below 0, compared with the club's minimum for viable training.
+	 * A home match without an end time counts as DEFAULT_MATCH_HOURS long.
 	 */
 	function withTables(clubId: string, rows: SessionRow[]): TrainingSession[] {
 		if (!rows.length) return [];
 		const { totalTables, tablesPerHomeMatch, minTrainingTables } = settings.clubSettings(clubId);
 		const homeMatches = (
-			db.prepare('SELECT id, starts_at, ends_at FROM matches WHERE club_id = ? AND is_home = 1 ORDER BY starts_at').all(clubId) as {
+			db
+				.prepare('SELECT id, venue_id, starts_at, ends_at FROM matches WHERE club_id = ? AND is_home = 1 AND starts_at >= ? ORDER BY starts_at')
+				.all(clubId, new Date(Math.min(...rows.map((r) => Date.parse(r.starts_at))) - 86_400_000).toISOString()) as {
 				id: string;
+				venue_id: string;
 				starts_at: string;
 				ends_at: string | null;
 			}[]
 		).map((m) => ({
 			id: m.id,
+			venueId: m.venue_id,
 			start: Date.parse(m.starts_at),
 			end: m.ends_at ? Date.parse(m.ends_at) : Date.parse(m.starts_at) + DEFAULT_MATCH_HOURS * 3_600_000
 		}));
 		return rows.map((r) => {
 			const start = Date.parse(r.starts_at);
 			const end = Date.parse(r.ends_at);
-			const homeMatchIds = homeMatches.filter((m) => m.start < end && m.end > start).map((m) => m.id);
+			const homeMatchIds = homeMatches.filter((m) => m.venueId === r.venue_id && m.start < end && m.end > start).map((m) => m.id);
 			const freeTables = Math.max(0, totalTables - homeMatchIds.length * tablesPerHomeMatch);
 			const cancelled = r.cancelled === 1;
 			return {
@@ -175,7 +181,7 @@ export function trainingModule(deps: {
 				coming: r.coming,
 				freeTables,
 				homeMatchIds,
-				tooFewTables: !cancelled && freeTables < minTrainingTables
+				belowMinTables: !cancelled && freeTables < minTrainingTables
 			};
 		});
 	}

@@ -17,7 +17,12 @@
 <p><a href="/{data.club.slug}">{t('match.back')}</a></p>
 <h1>{t('training.title')}</h1>
 {#if s.cancelled}<p class="cancelled" role="status">{t('training.cancelled')}</p>{/if}
-{#if s.tooFewTables}<p class="few-tables" role="status">⚠ {t('training.tooFewTables', { free: String(s.freeTables) })}</p>{/if}
+{#if s.belowMinTables}
+	<p class="few-tables" role="status">
+		⚠ {t('training.tooFewTables', { free: String(s.freeTables) })}{#if data.isAdmin}
+			{t('training.considerCancelling')}{/if}
+	</p>
+{/if}
 
 <dl>
 	<dt>{t('match.when')}</dt>
@@ -50,7 +55,7 @@
 			<form method="POST" action="?/restore"><button type="submit">{t('training.restore')}</button></form>
 		{:else}
 			<form method="POST" action="?/cancel">
-				<button type="submit" class:primary={s.tooFewTables}>{t('training.cancel')}</button>
+				<button type="submit" class:primary={s.belowMinTables}>{t('training.cancel')}</button>
 				<p class="hint">{t('training.cancelHint')}</p>
 			</form>
 		{/if}

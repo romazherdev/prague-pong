@@ -80,7 +80,7 @@ export function clashesModule(deps: {
 				if (matchIds.length > 1) clashes.push({ kind: 'doubleBooked', date, matchIds, member: { id, name } });
 			}
 		}
-		for (const session of trainings.filter((s) => s.tooFewTables)) {
+		for (const session of trainings.filter((s) => s.belowMinTables)) {
 			clashes.push({
 				kind: 'trainingTables',
 				date: session.date,

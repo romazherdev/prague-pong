@@ -71,7 +71,7 @@
 			<a class="row session" class:cancelled={s.cancelled} href="/{data.club.slug}/trainings/{s.id}">
 				{formatMatchTime(s.startsAt, data.locale, data.club.timeZone)} ·
 				{t('training.comingAndTables', { count: String(s.coming), free: String(s.freeTables) })}
-				{#if s.tooFewTables}<strong class="few">⚠</strong>{/if}
+				{#if s.belowMinTables}<strong class="few">⚠</strong>{/if}
 				{#if s.cancelled}<strong>{t('training.cancelledShort')}</strong>{/if}
 			</a>
 		</li>

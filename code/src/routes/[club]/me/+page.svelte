@@ -67,7 +67,7 @@
 						<time datetime={s.startsAt}>{formatMatchTime(s.startsAt, data.locale, data.club.timeZone)}</time>
 						<span class="what"
 							><strong>{t('training.title')}</strong> · {s.venue.name} ·
-							{t('training.comingAndTables', { count: String(s.coming), free: String(s.freeTables) })}{#if s.tooFewTables}
+							{t('training.comingAndTables', { count: String(s.coming), free: String(s.freeTables) })}{#if s.belowMinTables}
 								<span class="flag few">⚠</span>{/if}</span
 						>
 					</a>

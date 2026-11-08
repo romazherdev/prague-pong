@@ -24,14 +24,14 @@ describe('free tables for a training session', () => {
 		const { tuesday, match } = setup();
 		match('A', false, '2026-11-10T17:00:00Z'); // away matches don't take tables
 
-		expect(tuesday()).toMatchObject({ freeTables: 8, tooFewTables: false });
+		expect(tuesday()).toMatchObject({ freeTables: 8, belowMinTables: false });
 	});
 
 	it('one home match takes 3 tables', () => {
 		const { tuesday, match } = setup();
 		match('B', true, '2026-11-10T17:00:00Z', '2026-11-10T20:00:00Z');
 
-		expect(tuesday()).toMatchObject({ freeTables: 5, tooFewTables: false });
+		expect(tuesday()).toMatchObject({ freeTables: 5, belowMinTables: false });
 	});
 
 	it('two home matches leave 2 tables: still viable at the default minimum of 2, flagged at 3', () => {
@@ -39,9 +39,9 @@ describe('free tables for a training session', () => {
 		match('B', true, '2026-11-10T17:00:00Z', '2026-11-10T20:00:00Z');
 		match('D', true, '2026-11-10T17:30:00Z', '2026-11-10T20:30:00Z');
 
-		expect(tuesday()).toMatchObject({ freeTables: 2, tooFewTables: false });
+		expect(tuesday()).toMatchObject({ freeTables: 2, belowMinTables: false });
 		core.updateClubSettings(asAdmin, club.id, { totalTables: 8, tablesPerHomeMatch: 3, minTrainingTables: 3 });
-		expect(tuesday()).toMatchObject({ freeTables: 2, tooFewTables: true });
+		expect(tuesday()).toMatchObject({ freeTables: 2, belowMinTables: true });
 	});
 
 	it('never goes below 0', () => {
@@ -50,7 +50,7 @@ describe('free tables for a training session', () => {
 		match('B', true, '2026-11-10T17:00:00Z');
 		match('D', true, '2026-11-10T17:00:00Z');
 
-		expect(tuesday()).toMatchObject({ freeTables: 0, tooFewTables: true });
+		expect(tuesday()).toMatchObject({ freeTables: 0, belowMinTables: true });
 	});
 
 	it("only counts home matches that overlap the session (a match without an end time counts as 3 hours)", () => {
@@ -60,6 +60,15 @@ describe('free tables for a training session', () => {
 		match('C', true, '2026-11-10T14:30:00Z'); // 15:30, no end time: until 18:30, overlaps
 
 		expect(tuesday()).toMatchObject({ freeTables: 5 });
+	});
+
+	it("only counts home matches at the training's venue", () => {
+		const { core, club, tuesday, seed } = setup();
+		const elsewhere = seed.venue({ name: 'Another home hall', address: 'X' });
+		const teamB = core.listTeams(club.id).find((t) => t.name === 'B')!;
+		seed.match({ clubId: club.id, teamId: teamB.id, venueId: elsewhere.id, opponent: 'B opp', isHome: true, startsAt: '2026-11-10T17:00:00Z' });
+
+		expect(tuesday().freeTables).toBe(8);
 	});
 
 	it('follows a rescheduled match', () => {
@@ -94,7 +103,7 @@ describe('the warning in the calendar and on the session', () => {
 		core.cancelTrainingSession(asAdmin, club.id, tuesday().id);
 
 		expect(core.clubCalendar(club.id).clashes).toEqual([]);
-		expect(tuesday()).toMatchObject({ cancelled: true, tooFewTables: false });
+		expect(tuesday()).toMatchObject({ cancelled: true, belowMinTables: false });
 	});
 
 	it('the session page shows coming and free tables', () => {

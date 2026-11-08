@@ -85,7 +85,7 @@
 						{:else if item.training}
 						{@const s = item.training}
 						<li>
-							<a class="match training" class:cancelled={s.cancelled} class:few={s.tooFewTables} href="/{data.club.slug}/trainings/{s.id}">
+							<a class="match training" class:cancelled={s.cancelled} class:few={s.belowMinTables} href="/{data.club.slug}/trainings/{s.id}">
 								<time datetime={s.startsAt}>{formatMatchTime(s.startsAt, data.locale, data.club.timeZone)}</time>
 								<div class="teams"><span class="team">{t('training.title')}</span> <span>{s.venue.name}</span></div>
 								<div class="where">
