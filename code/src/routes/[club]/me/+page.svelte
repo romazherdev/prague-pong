@@ -65,7 +65,11 @@
 				<li class="event training" class:cancelled={s.cancelled}>
 					<a class="details" href="/{data.club.slug}/trainings/{s.id}">
 						<time datetime={s.startsAt}>{formatMatchTime(s.startsAt, data.locale, data.club.timeZone)}</time>
-						<span class="what"><strong>{t('training.title')}</strong> · {s.venue.name} · {t('training.coming', { count: String(s.coming) })}</span>
+						<span class="what"
+							><strong>{t('training.title')}</strong> · {s.venue.name} ·
+							{t('training.comingAndTables', { count: String(s.coming), free: String(s.freeTables) })}{#if s.tooFewTables}
+								<span class="flag few">⚠</span>{/if}</span
+						>
 					</a>
 					{#if s.cancelled}
 						<p class="hint">{t('training.cancelled')}</p>
@@ -114,6 +118,9 @@
 	.event.cancelled .details {
 		text-decoration: line-through;
 		color: #777;
+	}
+	.flag.few {
+		background: #dc2626;
 	}
 	.flag.playing {
 		background: #15803d;

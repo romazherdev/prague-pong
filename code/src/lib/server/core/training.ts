@@ -6,6 +6,7 @@ import type { MatchMessageKind } from '#lib/message-kinds.js';
 import { accessRules, InvalidInputError, NotFoundError, type Actor } from './access';
 import type { calendarModule } from './calendar';
 import type { Clock } from './ports';
+import type { settingsModule } from './settings';
 import { localDate, wallClockToUtc } from './time';
 
 /** How far ahead sessions are generated from the rules. */
@@ -39,7 +40,16 @@ export type TrainingSession = {
 	cancelled: boolean;
 	/** Active members who said they're coming. */
 	coming: number;
+	/** Tables left after home matches that overlap the session (never below 0). */
+	freeTables: number;
+	/** Home matches overlapping the session, which take its tables. */
+	homeMatchIds: string[];
+	/** Fewer free tables than the club's minimum for viable training (never for a cancelled session). */
+	tooFewTables: boolean;
 };
+
+/** A home match without an end time is assumed to take this long. */
+export const DEFAULT_MATCH_HOURS = 3;
 
 type RuleRow = {
 	id: string;
@@ -55,8 +65,13 @@ const isTime = (t: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
 const addDays = (date: string, days: number) => new Date(Date.parse(`${date}T12:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 const isoWeekday = (date: string) => new Date(`${date}T12:00:00Z`).getUTCDay() || 7;
 
-export function trainingModule(deps: { db: Database.Database; clock: Clock; calendar: ReturnType<typeof calendarModule> }) {
-	const { db, clock, calendar } = deps;
+export function trainingModule(deps: {
+	db: Database.Database;
+	clock: Clock;
+	calendar: ReturnType<typeof calendarModule>;
+	settings: ReturnType<typeof settingsModule>;
+}) {
+	const { db, clock, calendar, settings } = deps;
 	const rules = accessRules(db);
 
 	const clubOf = (clubId: string) => {
@@ -126,19 +141,48 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 		(SELECT count(*) FROM training_responses r JOIN members m ON m.id = r.member_id
 		 WHERE r.session_id = s.id AND r.answer = 'in' AND m.active = 1) AS coming
 		FROM training_sessions s JOIN venues v ON v.id = s.venue_id`;
-	const toSession = (r: SessionRow): TrainingSession => ({
-		id: r.id,
-		date: r.date,
-		startsAt: r.starts_at,
-		endsAt: r.ends_at,
-		venue: { name: r.venue_name, address: r.venue_address },
-		cancelled: r.cancelled === 1,
-		coming: r.coming
-	});
+	/**
+	 * Adds the table maths to sessions: free tables = total − (overlapping home matches × tables per match),
+	 * never below 0, compared with the club's minimum for viable training.
+	 */
+	function withTables(clubId: string, rows: SessionRow[]): TrainingSession[] {
+		if (!rows.length) return [];
+		const { totalTables, tablesPerHomeMatch, minTrainingTables } = settings.clubSettings(clubId);
+		const homeMatches = (
+			db.prepare('SELECT id, starts_at, ends_at FROM matches WHERE club_id = ? AND is_home = 1 ORDER BY starts_at').all(clubId) as {
+				id: string;
+				starts_at: string;
+				ends_at: string | null;
+			}[]
+		).map((m) => ({
+			id: m.id,
+			start: Date.parse(m.starts_at),
+			end: m.ends_at ? Date.parse(m.ends_at) : Date.parse(m.starts_at) + DEFAULT_MATCH_HOURS * 3_600_000
+		}));
+		return rows.map((r) => {
+			const start = Date.parse(r.starts_at);
+			const end = Date.parse(r.ends_at);
+			const homeMatchIds = homeMatches.filter((m) => m.start < end && m.end > start).map((m) => m.id);
+			const freeTables = Math.max(0, totalTables - homeMatchIds.length * tablesPerHomeMatch);
+			const cancelled = r.cancelled === 1;
+			return {
+				id: r.id,
+				date: r.date,
+				startsAt: r.starts_at,
+				endsAt: r.ends_at,
+				venue: { name: r.venue_name, address: r.venue_address },
+				cancelled,
+				coming: r.coming,
+				freeTables,
+				homeMatchIds,
+				tooFewTables: !cancelled && freeTables < minTrainingTables
+			};
+		});
+	}
 
 	function findSession(clubId: string, sessionId: string): TrainingSession | undefined {
 		const row = db.prepare(`${SESSION_SELECT} WHERE s.id = ? AND s.club_id = ?`).get(sessionId, clubId) as SessionRow | undefined;
-		return row && toSession(row);
+		return row && withTables(clubId, [row])[0];
 	}
 
 	function sessionOf(clubId: string, sessionId: string): TrainingSession {
@@ -152,7 +196,7 @@ export function trainingModule(deps: { db: Database.Database; clock: Clock; cale
 		const rows = db
 			.prepare(`${SESSION_SELECT} WHERE s.club_id = ? AND (? OR s.date >= ?) ORDER BY s.starts_at`)
 			.all(clubId, opts.includePast ? 1 : 0, today(clubId)) as SessionRow[];
-		return rows.map(toSession);
+		return withTables(clubId, rows);
 	}
 
 	const answersOf = (memberId: string) =>

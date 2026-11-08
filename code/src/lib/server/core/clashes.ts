@@ -16,7 +16,16 @@ export type EveningClash =
 			tablesNeeded: number;
 			totalTables: number;
 	  }
-	| { kind: 'doubleBooked'; date: string; matchIds: string[]; member: { id: string; name: string } };
+	| { kind: 'doubleBooked'; date: string; matchIds: string[]; member: { id: string; name: string } }
+	| {
+			/** Home matches leave a training session fewer free tables than the club's minimum. */
+			kind: 'trainingTables';
+			date: string;
+			matchIds: string[];
+			sessionId: string;
+			freeTables: number;
+			minTrainingTables: number;
+	  };
 
 /** A calendar match with its evening (the club's local date, which clashes are grouped by). */
 export type EveningMatch = CalendarMatch & {
@@ -39,10 +48,10 @@ export function clashesModule(deps: {
 	const { calendar, lineups, settings, training } = deps;
 	const rules = accessRules(deps.db);
 
-	function clashesAmong(clubId: string, matches: CalendarMatch[]): EveningClash[] {
+	function clashesAmong(clubId: string, matches: CalendarMatch[], trainings: TrainingSession[] = []): EveningClash[] {
 		const timeZone = calendar.findClubById(clubId)?.timeZone;
 		if (!timeZone) return [];
-		const { totalTables, tablesPerHomeMatch } = settings.clubSettings(clubId);
+		const { totalTables, tablesPerHomeMatch, minTrainingTables } = settings.clubSettings(clubId);
 		const lineupOf = lineups.activeLineupsByMatch(clubId);
 		const evenings = Map.groupBy(matches, (m) => localDate(new Date(m.startsAt), timeZone));
 		const clashes: EveningClash[] = [];
@@ -71,7 +80,17 @@ export function clashesModule(deps: {
 				if (matchIds.length > 1) clashes.push({ kind: 'doubleBooked', date, matchIds, member: { id, name } });
 			}
 		}
-		return clashes;
+		for (const session of trainings.filter((s) => s.tooFewTables)) {
+			clashes.push({
+				kind: 'trainingTables',
+				date: session.date,
+				matchIds: session.homeMatchIds,
+				sessionId: session.id,
+				freeTables: session.freeTables,
+				minTrainingTables
+			});
+		}
+		return clashes.sort((a, b) => a.date.localeCompare(b.date));
 	}
 
 	return {
@@ -90,12 +109,12 @@ export function clashesModule(deps: {
 				spotsOpen: spotsOpen.get(m.id) ?? 0
 			}));
 			const shown = new Set(matches.map((m) => m.id));
+			const trainings = training.listTrainingSessions(clubId, { includePast: filter.includePast }).map((s) => ({ ...s, evening: s.date }));
 			// A double booking names a member, so only members see it; the calendar itself is public.
 			const isMember = !!viewer && rules.isActiveMemberOf(viewer.memberId, clubId);
-			const clashes = clashesAmong(clubId, all).filter(
-				(c) => c.matchIds.some((id) => shown.has(id)) && (isMember || c.kind !== 'doubleBooked')
+			const clashes = clashesAmong(clubId, all, trainings).filter(
+				(c) => (c.kind === 'trainingTables' || c.matchIds.some((id) => shown.has(id))) && (isMember || c.kind !== 'doubleBooked')
 			);
-			const trainings = training.listTrainingSessions(clubId, { includePast: filter.includePast }).map((s) => ({ ...s, evening: s.date }));
 			return { matches, trainings, clashes };
 		},
 

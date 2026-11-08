@@ -4,7 +4,7 @@
 
 **Blocked by:** 09, 14
 
-**Status:** ready-for-agent
+**Status:** claimed
 
 - [ ] Free tables per session = total tables − (home matches that overlap the session × tables per match), never below 0
 - [ ] The session shows "X coming, Y tables free"

@@ -18,6 +18,8 @@
 						needed: String(clash.tablesNeeded),
 						total: String(clash.totalTables)
 					})}
+				{:else if clash.kind === 'trainingTables'}
+					{t('clash.trainingTables', { free: String(clash.freeTables), min: String(clash.minTrainingTables) })}
 				{:else}
 					{t('clash.doubleBooked', { name: clash.member.name, matches: String(clash.matchIds.length) })}
 				{/if}

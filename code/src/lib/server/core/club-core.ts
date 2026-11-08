@@ -33,7 +33,7 @@ export function createClubCore(deps: CoreDeps) {
 	// Responses report each answer change; drop-outs decide whom to notify.
 	const responses = responsesModule({ ...deps, calendar, onAnswerChanged: dropouts.onAnswerChanged });
 	const settings = settingsModule(deps);
-	const training = trainingModule({ ...deps, calendar });
+	const training = trainingModule({ ...deps, calendar, settings });
 	const clashes = clashesModule({ ...deps, calendar, lineups, settings, training });
 	return {
 		resolveLocale,

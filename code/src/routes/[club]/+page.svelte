@@ -11,8 +11,11 @@
 	const evenings = $derived(
 		[...new Set([...data.matches.map((m) => m.evening), ...data.trainings.map((s) => s.evening)])].sort().map((date) => ({
 			date,
-			matches: data.matches.filter((m) => m.evening === date),
-			trainings: data.trainings.filter((s) => s.evening === date),
+			// Matches and trainings together, by start time.
+			items: [
+				...data.matches.filter((m) => m.evening === date).map((match) => ({ startsAt: match.startsAt, match, training: null })),
+				...data.trainings.filter((s) => s.evening === date).map((training) => ({ startsAt: training.startsAt, match: null, training }))
+			].sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
 			clashes: data.clashes.filter((c) => c.date === date)
 		}))
 	);
@@ -62,7 +65,9 @@
 			<section class="evening" class:clash={evening.clashes.length > 0}>
 				<ClashNotes clashes={evening.clashes} locale={data.locale} />
 				<ul class="matches">
-					{#each evening.matches as match (match.id)}
+					{#each evening.items as item (item.match?.id ?? item.training?.id)}
+						{#if item.match}
+						{@const match = item.match}
 						<li>
 							<a class="match" href="/{data.club.slug}/matches/{match.id}">
 								<time datetime={match.startsAt}>{formatMatchTime(match.startsAt, data.locale, data.club.timeZone)}</time>
@@ -77,17 +82,21 @@
 								<SpotOpenBadge count={match.spotsOpen} locale={data.locale} />
 							</a>
 						</li>
-					{/each}
-					{#each evening.trainings as s (s.id)}
+						{:else if item.training}
+						{@const s = item.training}
 						<li>
-							<a class="match training" class:cancelled={s.cancelled} href="/{data.club.slug}/trainings/{s.id}">
+							<a class="match training" class:cancelled={s.cancelled} class:few={s.tooFewTables} href="/{data.club.slug}/trainings/{s.id}">
 								<time datetime={s.startsAt}>{formatMatchTime(s.startsAt, data.locale, data.club.timeZone)}</time>
 								<div class="teams"><span class="team">{t('training.title')}</span> <span>{s.venue.name}</span></div>
 								<div class="where">
-									{#if s.cancelled}<strong>{t('training.cancelledShort')}</strong>{:else}{t('training.coming', { count: String(s.coming) })}{/if}
+									{#if s.cancelled}<strong>{t('training.cancelledShort')}</strong>{:else}{t('training.comingAndTables', {
+											count: String(s.coming),
+											free: String(s.freeTables)
+										})}{/if}
 								</div>
 							</a>
 						</li>
+						{/if}
 					{/each}
 				</ul>
 			</section>
@@ -146,6 +155,9 @@
 	}
 	.match.training {
 		background: #f0fdf4;
+	}
+	.match.training.few {
+		background: #fef2f2;
 	}
 	.match.training.cancelled {
 		background: #f5f5f4;

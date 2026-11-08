@@ -69,7 +69,9 @@
 	{#each data.sessions.slice(0, 12) as s (s.id)}
 		<li>
 			<a class="row session" class:cancelled={s.cancelled} href="/{data.club.slug}/trainings/{s.id}">
-				{formatMatchTime(s.startsAt, data.locale, data.club.timeZone)} · {t('training.coming', { count: String(s.coming) })}
+				{formatMatchTime(s.startsAt, data.locale, data.club.timeZone)} ·
+				{t('training.comingAndTables', { count: String(s.coming), free: String(s.freeTables) })}
+				{#if s.tooFewTables}<strong class="few">⚠</strong>{/if}
 				{#if s.cancelled}<strong>{t('training.cancelledShort')}</strong>{/if}
 			</a>
 		</li>
@@ -126,6 +128,9 @@
 	.session {
 		color: inherit;
 		text-decoration: none;
+	}
+	.few {
+		color: #dc2626;
 	}
 	.session.cancelled {
 		text-decoration: line-through;

@@ -17,6 +17,7 @@
 <p><a href="/{data.club.slug}">{t('match.back')}</a></p>
 <h1>{t('training.title')}</h1>
 {#if s.cancelled}<p class="cancelled" role="status">{t('training.cancelled')}</p>{/if}
+{#if s.tooFewTables}<p class="few-tables" role="status">⚠ {t('training.tooFewTables', { free: String(s.freeTables) })}</p>{/if}
 
 <dl>
 	<dt>{t('match.when')}</dt>
@@ -28,7 +29,7 @@
 	<dd><strong>{s.venue.name}</strong><br /><address>{s.venue.address}</address></dd>
 	<dt>{t('training.comingTitle')}</dt>
 	<dd>
-		<strong>{t('training.coming', { count: String(s.coming) })}</strong>
+		<strong>{t('training.comingAndTables', { count: String(s.coming), free: String(s.freeTables) })}</strong>
 		{#if s.comingNames?.length}<br />{s.comingNames.join(', ')}{/if}
 	</dd>
 </dl>
@@ -49,7 +50,7 @@
 			<form method="POST" action="?/restore"><button type="submit">{t('training.restore')}</button></form>
 		{:else}
 			<form method="POST" action="?/cancel">
-				<button type="submit">{t('training.cancel')}</button>
+				<button type="submit" class:primary={s.tooFewTables}>{t('training.cancel')}</button>
 				<p class="hint">{t('training.cancelHint')}</p>
 			</form>
 		{/if}
@@ -85,6 +86,13 @@
 	.cancelled {
 		background: #57534e;
 		color: #fff;
+		border-radius: 0.5rem;
+		padding: 0.5rem 1rem;
+		font-weight: 700;
+	}
+	.few-tables {
+		background: #fef2f2;
+		color: #991b1b;
 		border-radius: 0.5rem;
 		padding: 0.5rem 1rem;
 		font-weight: 700;
