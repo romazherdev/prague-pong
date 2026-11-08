@@ -11,26 +11,49 @@ export type PushSubscriptionInput = { endpoint: string; keys: { p256dh: string; 
 /** What a device shows: title, text, and the page to open when tapped. */
 export type NotificationContent = { title: string; body: string; url: string };
 
-const isSubscription = (s: PushSubscriptionInput) =>
-	typeof s?.endpoint === 'string' &&
-	/^https:\/\//.test(s.endpoint) &&
-	s.endpoint.length < 2000 &&
-	typeof s.keys?.p256dh === 'string' &&
-	typeof s.keys?.auth === 'string';
+/**
+ * Hosts of the browser push services (Chrome/Android, Firefox, Safari/iOS, Edge). The server sends requests
+ * to a subscription's endpoint, so anything else is refused: it could point the server at internal addresses.
+ */
+const PUSH_SERVICE_HOSTS = [/^fcm\.googleapis\.com$/, /\.push\.services\.mozilla\.com$/, /(^|\.)push\.apple\.com$/, /\.notify\.windows\.com$/];
+
+/** Each member keeps at most this many devices with push on; the oldest go first. */
+export const MAX_PUSH_DEVICES = 10;
+
+function isSubscription(s: unknown): s is PushSubscriptionInput {
+	const sub = s as PushSubscriptionInput | null;
+	if (typeof sub?.endpoint !== 'string' || sub.endpoint.length > 2000) return false;
+	if (typeof sub.keys?.p256dh !== 'string' || typeof sub.keys?.auth !== 'string') return false;
+	try {
+		const url = new URL(sub.endpoint);
+		return url.protocol === 'https:' && !url.port && PUSH_SERVICE_HOSTS.some((host) => host.test(url.hostname));
+	} catch {
+		return false;
+	}
+}
 
 export function pushModule(deps: { db: Database.Database; clock: Clock; calendar: ReturnType<typeof calendarModule> }) {
 	const { db, clock, calendar } = deps;
 	const rules = accessRules(db);
 
 	return {
-		/** Turns push on for this device, for the device's member. A device belongs to one member at a time. */
-		savePushSubscription(actor: Actor | undefined, clubId: string, subscription: PushSubscriptionInput): void {
+		/**
+		 * Turns push on for this device, for the device's member. A device belongs to one member at a time
+		 * (subscribing again on a shared phone moves it). Only real push-service endpoints are accepted.
+		 */
+		savePushSubscription(actor: Actor | undefined, clubId: string, subscription: unknown): void {
 			const me = rules.requireMember(actor, clubId);
 			if (!isSubscription(subscription)) throw new InvalidInputError('pushSubscriptionInvalid');
-			db.prepare(
+			db.transaction(() => {
+				db.prepare(
 				`INSERT INTO push_subscriptions (endpoint, member_id, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?)
 				 ON CONFLICT (endpoint) DO UPDATE SET member_id = excluded.member_id, p256dh = excluded.p256dh, auth = excluded.auth`
 			).run(subscription.endpoint, me.id, subscription.keys.p256dh, subscription.keys.auth, clock.now().toISOString());
+				db.prepare(
+					`DELETE FROM push_subscriptions WHERE member_id = ? AND endpoint NOT IN
+					 (SELECT endpoint FROM push_subscriptions WHERE member_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?)`
+				).run(me.id, me.id, MAX_PUSH_DEVICES);
+			})();
 		},
 
 		/** Turns push off for this device. Only the member's own devices. */
@@ -63,7 +86,7 @@ export function pushModule(deps: { db: Database.Database; clock: Clock; calendar
 			const club = calendar.findClubById(recipient.club_id)!;
 
 			if (intent.kind === 'spotOpen') {
-				const data = intent.data as { matchId: string; memberName: string };
+				const data = intent.data;
 				const match = calendar.getMatch(club.id, data.matchId);
 				if (!match) return null;
 				return {

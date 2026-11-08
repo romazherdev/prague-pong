@@ -19,3 +19,10 @@ ADR 0003 stores sign-in link and session tokens only as hashes. Personal links w
 - Admin pages show links; admins must send them privately (the UI says so). Group-chat messages (ticket 13) must never contain them.
 - The token is in the URL the first time the link is opened, so it can appear in server or proxy access logs. Keep those logs private.
 - If a device already belongs to another member, opening a link asks before switching, so nobody can swap a person's identity by sending them a different link.
+
+## Addendum (2026-11-08, ticket 12): the installed app starts at the personal link
+
+An app added to the iPhone home screen doesn't share Safari's cookies, so the `member` cookie alone can't tell the installed app who it belongs to. The club's web app manifest is therefore personal: fetched with credentials and never cached, its `start_url` is the device member's own personal link (for a signed-in captain too, so they can turn on push from the installed app).
+
+- Scripts running on the site can read the token from the manifest, unlike the httpOnly cookie. An XSS bug could therefore leak a member's link for later use, not only act as them while the page is open. Accepted: a personal link only ever allows member actions (ADR 0003), and the alternative is no identity in the installed iPhone app.
+- After an admin makes a new link, an installed app keeps opening the old one (and shows "link not valid") until the member removes the app and adds it again from the new link.

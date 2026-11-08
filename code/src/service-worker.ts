@@ -9,13 +9,13 @@ const sw = self as unknown as ServiceWorkerGlobalScope;
 
 sw.addEventListener('install', () => sw.skipWaiting());
 sw.addEventListener('activate', (event) => event.waitUntil(sw.clients.claim()));
-// A fetch handler is part of what makes browsers offer "install"; it just goes to the network.
-sw.addEventListener('fetch', () => {});
 
 sw.addEventListener('push', (event) => {
+	// The server writes the whole notification (title and text in the member's language).
 	const content = (event.data?.json() ?? {}) as { title?: string; body?: string; url?: string };
+	if (!content.title) return;
 	event.waitUntil(
-		sw.registration.showNotification(content.title ?? 'Prague Pong', {
+		sw.registration.showNotification(content.title, {
 			body: content.body,
 			icon: '/icons/icon-192.png',
 			badge: '/icons/icon-192.png',
@@ -29,11 +29,14 @@ sw.addEventListener('notificationclick', (event) => {
 	const url = new URL((event.notification.data as { url: string }).url, sw.location.origin).href;
 	event.waitUntil(
 		(async () => {
-			const windows = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
-			const open = windows.find((w) => w.url === url) ?? windows[0];
+			// Only windows this worker controls can be navigated; otherwise open a new one.
+			const windows = await sw.clients.matchAll({ type: 'window' });
+			const same = windows.find((w) => w.url === url);
+			if (same) return void (await same.focus());
+			const open = windows[0];
 			if (open) {
 				await open.focus();
-				if (open.url !== url) await open.navigate(url);
+				await open.navigate(url);
 			} else {
 				await sw.clients.openWindow(url);
 			}

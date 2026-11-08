@@ -3,7 +3,13 @@ export interface Clock {
 }
 
 /** Something the core wants a person to know about. Delivery (push, etc.) is the notifier's job. */
-export type NotificationIntent = { kind: string; recipientMemberId: string; data: Record<string, unknown> };
+/** Something the club core wants a member told. The notifier decides how (web push). */
+export type NotificationIntent = {
+	kind: 'spotOpen';
+	recipientMemberId: string;
+	/** A line-up player answered "no" (ticket 11). */
+	data: { matchId: string; memberId: string; memberName: string };
+};
 
 export interface Notifier {
 	send(intent: NotificationIntent): void | Promise<void>;

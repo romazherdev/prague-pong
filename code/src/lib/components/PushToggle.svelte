@@ -32,6 +32,8 @@
 			const registration = await navigator.serviceWorker.ready;
 			const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidPublicKey! });
 			const res = await post({ subscribe: subscription.toJSON() });
+			// Keep the browser and the server in step: if the server didn't store it, undo it here too.
+			if (!res.ok) await subscription.unsubscribe();
 			state = res.ok ? 'on' : 'off';
 		} catch {
 			state = 'off';
@@ -43,7 +45,8 @@
 		const registration = await navigator.serviceWorker.ready;
 		const subscription = await registration.pushManager.getSubscription();
 		if (subscription) {
-			await post({ unsubscribe: subscription.endpoint });
+			const res = await post({ unsubscribe: subscription.endpoint }).catch(() => null);
+			if (!res?.ok) return void (state = 'on');
 			await subscription.unsubscribe();
 		}
 		state = 'off';

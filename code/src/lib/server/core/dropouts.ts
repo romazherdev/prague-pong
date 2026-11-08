@@ -7,10 +7,7 @@ import type { NotificationIntent } from './ports';
 import type { AnswerChange } from './responses';
 
 /** Notification for a line-up player who changed their answer to "no". */
-export type SpotOpenIntent = NotificationIntent & {
-	kind: 'spotOpen';
-	data: { matchId: string; memberId: string; memberName: string };
-};
+export type SpotOpenIntent = Extract<NotificationIntent, { kind: 'spotOpen' }>;
 
 /**
  * Reacts to a line-up player dropping out (answer changed to "no"): the team's captain is to be told, or

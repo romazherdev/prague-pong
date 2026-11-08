@@ -1,6 +1,6 @@
 import { error, json, type RequestHandler } from '@sveltejs/kit';
-import { answeringActor, clubRequest, guarded } from '#lib/server/request.js';
-import { InvalidInputError } from '#lib/server/core/access.js';
+import { translator } from '#lib/i18n/messages.js';
+import { answeringActor, clubRequest, guardedForm } from '#lib/server/request.js';
 
 /**
  * Turns push notifications on or off for this device, for the device's member (personal link, else the
@@ -8,18 +8,16 @@ import { InvalidInputError } from '#lib/server/core/access.js';
  */
 export const POST: RequestHandler = async (event) => {
 	const req = clubRequest(event);
+	const t = translator(event.locals.locale);
 	const actor = answeringActor(req);
-	if (!actor) error(403);
+	if (!actor) error(403, t('error.linkInvalid'));
 	const body = (await event.request.json().catch(() => null)) as { subscribe?: unknown; unsubscribe?: unknown } | null;
-	return guarded(req, () => {
-		try {
-			if (body?.subscribe) req.core.savePushSubscription(actor, req.club.id, body.subscribe as never);
-			else if (typeof body?.unsubscribe === 'string') req.core.removePushSubscription(actor, req.club.id, body.unsubscribe);
-			else error(400);
-		} catch (e) {
-			if (e instanceof InvalidInputError) error(400, e.code);
-			throw e;
-		}
-		return json({ ok: true });
+	const result = guardedForm(req, () => {
+		if (body?.subscribe) req.core.savePushSubscription(actor, req.club.id, body.subscribe);
+		else if (typeof body?.unsubscribe === 'string') req.core.removePushSubscription(actor, req.club.id, body.unsubscribe);
+		else error(400, t('error.pushSubscriptionInvalid'));
+		return { ok: true };
 	});
+	if ('status' in result) error(result.status, t('error.pushSubscriptionInvalid'));
+	return json(result);
 };

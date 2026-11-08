@@ -238,3 +238,16 @@ describe('member language', () => {
 	});
 });
 
+describe('myPersonalLinkToken', () => {
+	it("is the actor's own link token, for the installed app to open with, from a personal link or a session", () => {
+		const { core, club, asAdmin, admin } = setup();
+		const petr = core.addMember(asAdmin, club.id, { name: 'Petr' });
+		const petrToken = tokenOf(core.personalLinkMessage(asAdmin, club.id, petr.id, { origin: ORIGIN, locale: 'cs' }).url);
+		const adminToken = tokenOf(core.personalLinkMessage(asAdmin, club.id, admin.id, { origin: ORIGIN, locale: 'cs' }).url);
+
+		expect(core.myPersonalLinkToken({ via: 'personal-link', memberId: petr.id }, club.id)).toBe(petrToken);
+		expect(core.myPersonalLinkToken(asAdmin, club.id)).toBe(adminToken);
+		expect(() => core.myPersonalLinkToken(undefined, club.id)).toThrow(ForbiddenError);
+	});
+});
+

@@ -1,17 +1,18 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { translator } from '#lib/i18n/messages.js';
-import { MEMBER_COOKIE } from '#lib/server/app.js';
-import { clubRequest } from '#lib/server/request.js';
+import { answeringActor, clubRequest } from '#lib/server/request.js';
 
 /**
- * The club's web app manifest. For a member it starts at their own personal link: an app added to the
- * iPhone home screen doesn't share Safari's cookies, so this is how the installed app knows who they are.
- * Fetched with credentials (`crossorigin="use-credentials"` on the link tag), never cached.
+ * The club's web app manifest. For a member (personal link or signed in) it starts at their own personal
+ * link: an app added to the iPhone home screen doesn't share Safari's cookies, so this is how the installed
+ * app knows who they are (ADR 0004). Fetched with credentials (`crossorigin="use-credentials"`), never cached.
  */
 export const GET: RequestHandler = (event) => {
-	const { club, member } = clubRequest(event);
+	const req = clubRequest(event);
+	const { club } = req;
 	const t = translator(event.locals.locale);
-	const linkToken = member ? event.cookies.get(MEMBER_COOKIE) : undefined;
+	const who = answeringActor(req);
+	const linkToken = who ? req.core.myPersonalLinkToken(who, club.id) : undefined;
 	return json(
 		{
 			name: `${club.name} · ${t('app.name')}`,

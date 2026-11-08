@@ -167,6 +167,15 @@ export function membersModule(deps: { db: Database.Database; clock: Clock }) {
 			return { url, text };
 		},
 
+		/**
+		 * The actor's own personal-link token. The installed app starts at the member's personal link
+		 * (ADR 0004), also for captains who signed in by email and never opened their link on this phone.
+		 */
+		myPersonalLinkToken(actor: Actor | undefined, clubId: string): string {
+			const me = rules.requireMember(actor, clubId);
+			return linkToken(me.id);
+		},
+
 		/** The active member a personal link belongs to, in this club; undefined for anything else. */
 		memberByPersonalLink(clubId: string, token: string | undefined): PersonalLinkMember | undefined {
 			if (!token) return undefined;
